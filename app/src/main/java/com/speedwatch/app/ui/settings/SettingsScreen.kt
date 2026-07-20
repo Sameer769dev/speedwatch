@@ -1,0 +1,361 @@
+package com.speedwatch.app.ui.settings
+
+import android.content.Intent
+import android.net.Uri
+import androidx.compose.foundation.clickable
+import androidx.compose.foundation.layout.*
+import androidx.compose.foundation.rememberScrollState
+import androidx.compose.foundation.text.KeyboardOptions
+import androidx.compose.foundation.verticalScroll
+import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.automirrored.filled.HelpOutline
+import androidx.compose.material.icons.filled.*
+import androidx.compose.material3.*
+import androidx.compose.runtime.*
+import androidx.compose.ui.Alignment
+import androidx.compose.ui.Modifier
+import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.platform.LocalContext
+import androidx.compose.ui.res.stringResource
+import androidx.compose.ui.text.font.FontWeight
+import androidx.compose.ui.text.input.KeyboardType
+import androidx.compose.ui.unit.dp
+import androidx.lifecycle.viewmodel.compose.viewModel
+import com.speedwatch.app.R
+import com.speedwatch.app.SpeedWatchApplication
+import com.speedwatch.app.domain.PdfReportManager
+import com.speedwatch.app.ui.components.PreferenceCategoryHeader
+import com.speedwatch.app.ui.components.PreferenceRow
+import com.speedwatch.app.ui.components.SpeedWatchTopBar
+import kotlinx.coroutines.flow.firstOrNull
+import kotlinx.coroutines.launch
+import java.text.SimpleDateFormat
+import java.util.*
+
+@Composable
+fun SettingsScreen(onNavigateToPremium: () -> Unit) {
+    val context = LocalContext.current
+    val app = context.applicationContext as SpeedWatchApplication
+    val viewModel: SettingsViewModel = viewModel {
+        SettingsViewModel(app.repository)
+    }
+    
+    val savedSettings by viewModel.settings.collectAsState()
+    val allLogs by app.repository.allLogs.collectAsState(initial = emptyList())
+    
+    var ispName by remember { mutableStateOf("") }
+    var planSpeed by remember { mutableStateOf("") }
+    var planSpeedError by remember { mutableStateOf<String?>(null) }
+    var showThemeDialog by remember { mutableStateOf(false) }
+    
+    LaunchedEffect(savedSettings) {
+        savedSettings?.let {
+            ispName = it.ispName
+            planSpeed = it.promisedDownloadMbps.toString()
+        }
+    }
+
+    Scaffold(
+        topBar = { SpeedWatchTopBar(stringResource(R.string.settings)) }
+    ) { innerPadding ->
+        Column(
+            modifier = Modifier
+                .fillMaxSize()
+                .padding(innerPadding)
+                .verticalScroll(rememberScrollState())
+        ) {
+            // PRO PROMO / STATUS
+            if (savedSettings?.isPremium != true) {
+                Card(
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .padding(16.dp),
+                    colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.primaryContainer),
+                    onClick = onNavigateToPremium
+                ) {
+                    Row(
+                        modifier = Modifier.padding(16.dp),
+                        verticalAlignment = Alignment.CenterVertically
+                    ) {
+                        Icon(Icons.Default.Diamond, contentDescription = null, tint = MaterialTheme.colorScheme.primary)
+                        Spacer(modifier = Modifier.width(16.dp))
+                        Column {
+                            Text(stringResource(R.string.go_pro), style = MaterialTheme.typography.titleMedium, fontWeight = FontWeight.Bold)
+                            Text(stringResource(R.string.pro_feature_ads_desc), style = MaterialTheme.typography.bodySmall)
+                        }
+                    }
+                }
+            } else {
+                PreferenceRow(
+                    title = stringResource(R.string.pro_active),
+                    summary = "Enjoy all premium benefits",
+                    icon = Icons.Default.Diamond,
+                    onClick = onNavigateToPremium
+                )
+            }
+
+            // ISP & MONITORING
+            PreferenceCategoryHeader("ISP & Monitoring")
+            
+            PreferenceRow(
+                title = stringResource(R.string.isp_name),
+                summary = ispName.ifEmpty { "Not set" },
+                icon = Icons.Default.Business
+            )
+            
+            Column(modifier = Modifier.padding(horizontal = 16.dp)) {
+                OutlinedTextField(
+                    value = ispName,
+                    onValueChange = { ispName = it },
+                    label = { Text("Provider Name") },
+                    modifier = Modifier.fillMaxWidth(),
+                    shape = MaterialTheme.shapes.medium
+                )
+                
+                Spacer(modifier = Modifier.height(8.dp))
+                
+                OutlinedTextField(
+                    value = planSpeed,
+                    onValueChange = { 
+                        planSpeed = it
+                        planSpeedError = null
+                    },
+                    label = { Text(stringResource(R.string.plan_speed)) },
+                    keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Number),
+                    modifier = Modifier.fillMaxWidth(),
+                    shape = MaterialTheme.shapes.medium,
+                    isError = planSpeedError != null,
+                    supportingText = {
+                        if (planSpeedError != null) {
+                            Text(text = planSpeedError!!, color = MaterialTheme.colorScheme.error)
+                        }
+                    }
+                )
+                
+                Button(
+                    onClick = {
+                        val speed = planSpeed.toDoubleOrNull()
+                        if (speed != null && speed > 0 && speed <= 10000) {
+                            viewModel.saveSettings(ispName, speed, speed * 0.1)
+                        } else {
+                            planSpeedError = "Invalid speed"
+                        }
+                    },
+                    modifier = Modifier.padding(vertical = 8.dp)
+                ) {
+                    Text("Update Plan")
+                }
+            }
+
+            if (savedSettings?.isPremium == true) {
+                var sliderPosition by remember { mutableStateOf(savedSettings?.checkFrequencyHours?.toFloat() ?: 6f) }
+                PreferenceRow(
+                    title = "Check Frequency",
+                    summary = "Every ${sliderPosition.toInt()} hours",
+                    icon = Icons.Default.Timer,
+                    widget = {
+                        Slider(
+                            value = sliderPosition,
+                            onValueChange = { sliderPosition = it },
+                            onValueChangeFinished = { viewModel.setFrequency(sliderPosition.toInt()) },
+                            valueRange = 1f..12f,
+                            steps = 11,
+                            modifier = Modifier.width(120.dp)
+                        )
+                    }
+                )
+            }
+
+            PreferenceRow(
+                title = "Mobile Background Tests",
+                summary = "Run tests on cellular data",
+                icon = Icons.Default.SignalCellularAlt,
+                widget = {
+                    Switch(
+                        checked = savedSettings?.allowMobileBackgroundTests == true,
+                        onCheckedChange = { viewModel.setAllowMobileBackground(it) }
+                    )
+                }
+            )
+
+            // NOTIFICATIONS
+            PreferenceCategoryHeader("Notifications")
+            
+            PreferenceRow(
+                title = "Speed Drop Alerts",
+                summary = "Notify when speed is below 80%",
+                icon = Icons.Default.NotificationsActive,
+                widget = {
+                    Switch(
+                        checked = savedSettings?.speedDropAlertsEnabled == true,
+                        onCheckedChange = { viewModel.setSpeedDropAlerts(it) }
+                    )
+                }
+            )
+            
+            PreferenceRow(
+                title = "Monthly Reports",
+                summary = "Notify when monthly PDF is ready",
+                icon = Icons.Default.Assessment,
+                widget = {
+                    Switch(
+                        checked = savedSettings?.reportAlertsEnabled == true,
+                        onCheckedChange = { viewModel.setReportAlerts(it) }
+                    )
+                }
+            )
+
+            PreferenceRow(
+                title = "Data Usage Alerts",
+                summary = "Notify at 90% of data cap",
+                icon = Icons.Default.DataUsage,
+                widget = {
+                    Switch(
+                        checked = savedSettings?.dataUsageAlertEnabled == true,
+                        onCheckedChange = { viewModel.setUsageAlerts(it) }
+                    )
+                }
+            )
+
+            // APPEARANCE
+            PreferenceCategoryHeader("Appearance")
+            
+            PreferenceRow(
+                title = "App Theme",
+                summary = savedSettings?.themePreference ?: "SYSTEM",
+                icon = Icons.Default.Palette,
+                onClick = { showThemeDialog = true }
+            )
+
+            // DATA & PRIVACY
+            PreferenceCategoryHeader("Data & Privacy")
+            
+            PreferenceRow(
+                title = "Monthly Data Cap (MB)",
+                summary = if (savedSettings?.dataUsageCapMB == 0) "Unlimited" else "${savedSettings?.dataUsageCapMB} MB",
+                icon = Icons.Default.Storage
+            )
+            
+            var capValue by remember { mutableStateOf(savedSettings?.dataUsageCapMB?.toString() ?: "0") }
+            OutlinedTextField(
+                value = capValue,
+                onValueChange = { 
+                    capValue = it 
+                    it.toIntOrNull()?.let { cap -> viewModel.setDataUsageCap(cap) }
+                },
+                label = { Text("Monthly Budget (0 = Unlimited)") },
+                keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Number),
+                modifier = Modifier.fillMaxWidth().padding(horizontal = 16.dp),
+                shape = MaterialTheme.shapes.medium
+            )
+            
+            val scope = rememberCoroutineScope()
+            PreferenceRow(
+                title = "Generate PDF Report",
+                summary = if (allLogs.size < 5) "Needs 5+ logs" else "Create detailed analysis",
+                icon = Icons.Default.PictureAsPdf,
+                onClick = {
+                    if (allLogs.size >= 5) {
+                        scope.launch {
+                            val sdf = SimpleDateFormat("MMMM yyyy", Locale.getDefault())
+                            val uri = PdfReportManager(context).generateReport(savedSettings, allLogs, sdf.format(Date()))
+                            uri?.let {
+                                val sendIntent = Intent(Intent.ACTION_SEND).apply {
+                                    putExtra(Intent.EXTRA_STREAM, it)
+                                    type = "application/pdf"
+                                    addFlags(Intent.FLAG_GRANT_READ_URI_PERMISSION)
+                                }
+                                context.startActivity(Intent.createChooser(sendIntent, "Share Report"))
+                            }
+                        }
+                    }
+                }
+            )
+
+            PreferenceRow(
+                title = "Clear All Data",
+                summary = "Logs, audits, and usage stats",
+                icon = Icons.Default.DeleteForever,
+                onClick = { viewModel.clearHistory() }
+            )
+
+            // SUPPORT & ABOUT
+            PreferenceCategoryHeader("Support & About")
+            
+            PreferenceRow(
+                title = "Rate SpeedWatch",
+                summary = "Support us on the Play Store",
+                icon = Icons.Default.Star,
+                onClick = {
+                    val intent = Intent(Intent.ACTION_VIEW, Uri.parse("market://details?id=${context.packageName}"))
+                    try { context.startActivity(intent) } catch (e: Exception) { /* Fallback */ }
+                }
+            )
+
+            PreferenceRow(
+                title = "Privacy Policy",
+                icon = Icons.Default.PrivacyTip,
+                onClick = {
+                    val intent = Intent(Intent.ACTION_VIEW, Uri.parse("https://speedwatch.app/privacy"))
+                    context.startActivity(intent)
+                }
+            )
+
+            PreferenceRow(
+                title = "Terms of Service",
+                icon = Icons.Default.Description,
+                onClick = {
+                    val intent = Intent(Intent.ACTION_VIEW, Uri.parse("https://speedwatch.app/terms"))
+                    context.startActivity(intent)
+                }
+            )
+
+            PreferenceRow(
+                title = "Contact Support",
+                summary = "Report a bug or suggest a feature",
+                icon = Icons.AutoMirrored.Filled.HelpOutline,
+                onClick = {
+                    val intent = Intent(Intent.ACTION_SENDTO, Uri.parse("mailto:support@speedwatch.app"))
+                    context.startActivity(intent)
+                }
+            )
+
+            Spacer(modifier = Modifier.height(16.dp))
+            Text(
+                text = "Version 1.0.0",
+                style = MaterialTheme.typography.bodySmall,
+                color = MaterialTheme.colorScheme.outline,
+                modifier = Modifier.align(Alignment.CenterHorizontally)
+            )
+            Spacer(modifier = Modifier.height(32.dp))
+        }
+    }
+
+    if (showThemeDialog) {
+        AlertDialog(
+            onDismissRequest = { showThemeDialog = false },
+            confirmButton = {},
+            title = { Text("Choose Theme") },
+            text = {
+                Column {
+                    listOf("SYSTEM", "LIGHT", "DARK").forEach { theme ->
+                        Row(
+                            modifier = Modifier
+                                .fillMaxWidth()
+                                .clickable {
+                                    viewModel.setTheme(theme)
+                                    showThemeDialog = false
+                                }
+                                .padding(16.dp),
+                            verticalAlignment = Alignment.CenterVertically
+                        ) {
+                            RadioButton(selected = savedSettings?.themePreference == theme, onClick = null)
+                            Spacer(modifier = Modifier.width(16.dp))
+                            Text(theme)
+                        }
+                    }
+                }
+            }
+        )
+    }
+}

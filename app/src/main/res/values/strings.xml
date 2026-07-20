@@ -1,0 +1,46 @@
+<resources>
+    <string name="app_name">SpeedWatch</string>
+    <string name="dashboard">Dashboard</string>
+    <string name="history">History</string>
+    <string name="reports">Reports</string>
+    <string name="settings">Settings</string>
+    <string name="lab">Lab</string>
+    <string name="premium">Premium</string>
+
+    <string name="start_test">Start Speed Test</string>
+    <string name="testing">Testing...</string>
+    <string name="welcome">Welcome to SpeedWatch</string>
+    <string name="setup_desc">Enter your plan details so we can monitor if your ISP is delivering full speed.</string>
+    <string name="isp_name">ISP Provider Name</string>
+    <string name="plan_speed">Your Plan Speed (Mbps)</string>
+    <string name="get_started">Get Started</string>
+    <string name="download">Download</string>
+    <string name="upload">Upload</string>
+    <string name="ping">Ping</string>
+    <string name="jitter">Jitter</string>
+    <string name="mbps">Mbps</string>
+    <string name="ms">ms</string>
+
+    <string name="go_pro">Go Pro</string>
+    <string name="upgrade_to_pro">Upgrade to Pro</string>
+    <string name="pro_desc">Support development and unlock advanced features.</string>
+    <string name="pro_feature_ads">Ad-Free Experience</string>
+    <string name="pro_feature_ads_desc">Remove all banner and full-screen ads.</string>
+    <string name="pro_feature_freq">Higher Monitoring Frequency</string>
+    <string name="pro_feature_freq_desc">Check speed every 1-3 hours instead of 12.</string>
+    <string name="pro_feature_history">Unlimited History</string>
+    <string name="pro_feature_history_desc">Keep track of all your speed tests without limits.</string>
+    <string name="pro_feature_analytics">Detailed Analytics</string>
+    <string name="pro_feature_analytics_desc">Advanced gaming grades and monthly CSV reports.</string>
+    <string name="unlock_everything">Unlock Everything - %s</string>
+    <string name="maybe_later">Maybe Later</string>
+    <string name="pro_active">Pro Features Active</string>
+
+    <string name="permission_location_rationale">SpeedWatch needs location access to identify Wi-Fi bands (2.4GHz/5GHz) and provide better network diagnostics.</string>
+
+    <string name="connected_validated">Connected &amp; Validated</string>
+    <string name="checking_connection">Checking Connection...</string>
+    <string name="identifying_network">Identifying network...</string>
+    <string name="show_details">Show Details</string>
+    <string name="stability_label">Stability: %s</string>
+</resources>

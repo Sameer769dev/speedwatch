@@ -1,0 +1,32 @@
+*.iml
+.gradle
+/local.properties
+/.idea/caches
+/.idea/libraries
+/.idea/modules.xml
+/.idea/workspace.xml
+/.idea/navEditor.xml
+/.idea/assetWizardSettings.xml
+.DS_Store
+/build
+app/build
+/captures
+.externalNativeBuild
+.cxx
+local.properties
+google-services.json
+keystore.properties
+*.jks
+*.keystore
+
+# Exclude moodflix project
+moodflix/
+
+# Exclude raw input images (large assets)
+input_images/
+
+# IDE / OS
+.kotlin/
+.idea/
+*.swp
+Thumbs.db
