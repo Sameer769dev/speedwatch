@@ -7,8 +7,6 @@ import androidx.compose.animation.core.*
 import androidx.compose.foundation.Canvas
 import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.*
-import androidx.compose.foundation.rememberScrollState
-import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.Close
 import androidx.compose.material.icons.filled.Diamond
@@ -36,7 +34,6 @@ import com.google.accompanist.permissions.rememberPermissionState
 import com.google.accompanist.permissions.shouldShowRationale
 import com.speedwatch.app.R
 import com.speedwatch.app.SpeedWatchApplication
-import com.speedwatch.app.domain.NetworkDetails
 import com.speedwatch.app.ui.components.AdBanner
 import com.speedwatch.app.ui.components.SpeedWatchTopBar
 import java.util.Locale
@@ -50,10 +47,6 @@ fun DashboardScreen(onNavigateToPremium: () -> Unit) {
     val context = LocalContext.current
     val app = context.applicationContext as SpeedWatchApplication
     
-    val locationPermissionState = rememberPermissionState(
-        Manifest.permission.ACCESS_FINE_LOCATION
-    )
-
     if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU) {
         val notificationPermissionState = rememberPermissionState(
             Manifest.permission.POST_NOTIFICATIONS
@@ -71,10 +64,8 @@ fun DashboardScreen(onNavigateToPremium: () -> Unit) {
     
     val uiState by viewModel.uiState.collectAsState()
     val settings by app.repository.ispSettings.collectAsState(initial = null)
-    val networkDetails by viewModel.networkDetails.collectAsState()
     
     var showTooltip by remember { mutableStateOf<String?>(null) }
-    var showPermissionRationale by remember { mutableStateOf(false) }
     var showProNag by remember { mutableStateOf(false) }
 
     Scaffold(
@@ -100,40 +91,25 @@ fun DashboardScreen(onNavigateToPremium: () -> Unit) {
                 .fillMaxSize()
                 .padding(innerPadding)
         ) {
-            // Main content area (Scrollable)
+            // Main content area (Non-Scrollable)
             Column(
                 modifier = Modifier
                     .weight(1f)
                     .fillMaxWidth()
-                    .padding(horizontal = 16.dp)
-                    .verticalScroll(rememberScrollState()),
+                    .padding(horizontal = 16.dp),
                 horizontalAlignment = Alignment.CenterHorizontally,
+                verticalArrangement = Arrangement.Center
             ) {
-                Spacer(modifier = Modifier.height(16.dp))
-
-                NetworkHealthCard(
-                    details = networkDetails,
-                    permissionGranted = locationPermissionState.status.isGranted,
-                    onRequestPermission = { 
-                        if (locationPermissionState.status.shouldShowRationale) {
-                            showPermissionRationale = true
-                        } else {
-                            locationPermissionState.launchPermissionRequest()
-                        }
-                    }
-                )
-
-                Spacer(modifier = Modifier.height(16.dp))
-
                 val currentSpeed = when (val state = uiState) {
                     is DashboardUiState.Testing -> state.lastResult
                     is DashboardUiState.Success -> state.download
                     else -> 0.0
                 }.coerceAtLeast(0.0)
                 
+                // Speedometer slightly smaller to fit
                 Speedometer(speed = currentSpeed)
                 
-                Spacer(modifier = Modifier.height(24.dp))
+                Spacer(modifier = Modifier.height(8.dp))
                 
                 AnimatedContent(
                     targetState = uiState,
@@ -152,7 +128,7 @@ fun DashboardScreen(onNavigateToPremium: () -> Unit) {
                                     showTooltip = "Upload speed is how fast you can send data to the internet."
                                 }
                             }
-                            Spacer(modifier = Modifier.height(16.dp))
+                            Spacer(modifier = Modifier.height(12.dp))
                             Row(modifier = Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceEvenly) {
                                 ResultColumn("Ping", state.latency.toDouble(), "ms") {
                                     showTooltip = "Latency (Ping) is the delay in your connection. Lower is better for gaming."
@@ -179,7 +155,7 @@ fun DashboardScreen(onNavigateToPremium: () -> Unit) {
                     }
                 }
                 
-                Spacer(modifier = Modifier.height(32.dp))
+                Spacer(modifier = Modifier.height(16.dp))
                 
                 Button(
                     onClick = { viewModel.runSpeedTest() },
@@ -201,8 +177,6 @@ fun DashboardScreen(onNavigateToPremium: () -> Unit) {
                         modifier = Modifier.padding(top = 12.dp)
                     )
                 }
-                
-                Spacer(modifier = Modifier.height(24.dp))
             }
 
             // Bottom Anchored Ad Banner (Fixed above nav bar)
@@ -246,23 +220,6 @@ fun DashboardScreen(onNavigateToPremium: () -> Unit) {
         )
     }
 
-    if (showPermissionRationale) {
-        AlertDialog(
-            onDismissRequest = { showPermissionRationale = false },
-            confirmButton = { 
-                TextButton(onClick = { 
-                    showPermissionRationale = false
-                    locationPermissionState.launchPermissionRequest()
-                }) { Text("Allow") } 
-            },
-            dismissButton = {
-                TextButton(onClick = { showPermissionRationale = false }) { Text("Dismiss") }
-            },
-            title = { Text("Location Permission") },
-            text = { Text(stringResource(R.string.permission_location_rationale)) }
-        )
-    }
-
     if (showProNag) {
         AlertDialog(
             onDismissRequest = { showProNag = false },
@@ -278,51 +235,6 @@ fun DashboardScreen(onNavigateToPremium: () -> Unit) {
             title = { Text("Remove Advertisements") },
             text = { Text("Upgrade to SpeedWatch Pro to remove ads, unlock unlimited history, and get hourly background checks.") }
         )
-    }
-}
-
-@Composable
-fun NetworkHealthCard(
-    details: NetworkDetails?,
-    permissionGranted: Boolean,
-    onRequestPermission: () -> Unit
-) {
-    Card(
-        modifier = Modifier.fillMaxWidth(),
-        colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.5f))
-    ) {
-        Row(
-            modifier = Modifier.padding(16.dp),
-            verticalAlignment = Alignment.CenterVertically
-        ) {
-            Icon(
-                imageVector = when(details?.transport) {
-                    "Wi-Fi" -> Icons.Default.Wifi
-                    "Cellular" -> Icons.Default.NetworkCheck
-                    else -> Icons.Default.Speed
-                },
-                contentDescription = null,
-                tint = if (details?.isValidated == true) Color(0xFF4CAF50) else MaterialTheme.colorScheme.primary
-            )
-            Spacer(modifier = Modifier.width(16.dp))
-            Column(modifier = Modifier.weight(1f)) {
-                Text(
-                    text = if (details?.isValidated == true) stringResource(R.string.connected_validated) else stringResource(R.string.checking_connection),
-                    style = MaterialTheme.typography.titleSmall,
-                    fontWeight = FontWeight.Bold
-                )
-                Text(
-                    text = details?.let { "${it.transport} • ${it.detailInfo}" } ?: stringResource(R.string.identifying_network),
-                    style = MaterialTheme.typography.bodySmall
-                )
-            }
-            
-            if (!permissionGranted && details?.transport == "Wi-Fi") {
-                TextButton(onClick = onRequestPermission) {
-                    Text(stringResource(R.string.show_details), style = MaterialTheme.typography.labelSmall)
-                }
-            }
-        }
     }
 }
 
@@ -376,7 +288,7 @@ fun Speedometer(speed: Double, maxSpeed: Double = 100.0) {
     val secondaryColor = MaterialTheme.colorScheme.secondaryContainer
     
     // Increased container size and added internal padding to prevent needle/stroke clipping
-    Box(contentAlignment = Alignment.Center, modifier = Modifier.size(320.dp).padding(16.dp)) {
+    Box(contentAlignment = Alignment.Center, modifier = Modifier.size(260.dp).padding(16.dp)) {
         Canvas(modifier = Modifier.fillMaxSize()) {
             val strokeWidth = 20.dp.toPx()
             // radius calculated based on padded size
