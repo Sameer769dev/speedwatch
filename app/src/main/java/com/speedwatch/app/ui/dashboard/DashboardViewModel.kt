@@ -7,6 +7,7 @@ import com.speedwatch.app.data.repository.SpeedRepository
 import com.speedwatch.app.domain.NetworkDetails
 import com.speedwatch.app.domain.NetworkInfoProvider
 import com.speedwatch.app.domain.SpeedMeasurer
+import com.speedwatch.app.domain.SpeedResult
 import com.speedwatch.app.ui.notifications.NotificationHelper
 import kotlinx.coroutines.flow.*
 import kotlinx.coroutines.launch
@@ -42,21 +43,32 @@ class DashboardViewModel(
             val jitter = speedMeasurer.measureJitter() ?: 0.0
             
             _uiState.value = DashboardUiState.Testing("Download", 0.0)
-            val downloadResult = speedMeasurer.measureDownloadSpeed()
+            var lastDownload: SpeedResult? = null
+            speedMeasurer.measureDownloadFlow().collect { result ->
+                lastDownload = result
+                _uiState.value = DashboardUiState.Testing("Download", result.mbps)
+            }
             
-            if (downloadResult != null) {
-                _uiState.value = DashboardUiState.Testing("Upload", downloadResult.mbps)
-                val uploadResult = speedMeasurer.measureUploadSpeed()
+            if (lastDownload != null) {
+                val finalDownload = lastDownload!!
+                _uiState.value = DashboardUiState.Testing("Upload", 0.0)
+                var lastUpload: SpeedResult? = null
+                speedMeasurer.measureUploadFlow().collect { result ->
+                    lastUpload = result
+                    _uiState.value = DashboardUiState.Testing("Upload", result.mbps)
+                }
+                
+                val finalUpload = lastUpload ?: SpeedResult(0.0, 0L)
                 
                 val log = SpeedLog(
                     timestamp = System.currentTimeMillis(),
-                    downloadSpeedMbps = downloadResult.mbps,
-                    uploadSpeedMbps = uploadResult?.mbps ?: 0.0,
+                    downloadSpeedMbps = finalDownload.mbps,
+                    uploadSpeedMbps = finalUpload.mbps,
                     latencyMs = latency,
                     networkType = currentDetails?.transport ?: "Manual",
                     jitterMs = jitter,
                     signalStrength = currentDetails?.signalStrength,
-                    dataUsageBytes = downloadResult.bytesUsed + (uploadResult?.bytesUsed ?: 0L)
+                    dataUsageBytes = finalDownload.bytesUsed + finalUpload.bytesUsed
                 )
                 repository.insertLog(log)
 
@@ -72,7 +84,7 @@ class DashboardViewModel(
                     }
                 }
 
-                _uiState.value = DashboardUiState.Success(downloadResult.mbps, uploadResult?.mbps ?: 0.0, latency, jitter)
+                _uiState.value = DashboardUiState.Success(finalDownload.mbps, finalUpload.mbps, latency, jitter)
             } else {
                 _uiState.value = DashboardUiState.Error("Failed to measure download speed")
             }

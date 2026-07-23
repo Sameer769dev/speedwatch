@@ -5,19 +5,24 @@ import android.os.Build
 import androidx.compose.animation.*
 import androidx.compose.animation.core.*
 import androidx.compose.foundation.Canvas
+import androidx.compose.foundation.BorderStroke
 import androidx.compose.foundation.background
+import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.*
+import androidx.compose.foundation.rememberScrollState
+import androidx.compose.foundation.shape.CircleShape
+import androidx.compose.foundation.shape.RoundedCornerShape
+import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
-import androidx.compose.material.icons.filled.Close
-import androidx.compose.material.icons.filled.Diamond
-import androidx.compose.material.icons.filled.Info
-import androidx.compose.material.icons.filled.NetworkCheck
-import androidx.compose.material.icons.filled.Speed
-import androidx.compose.material.icons.filled.Wifi
+import androidx.compose.material.icons.filled.*
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.draw.clip
+import androidx.compose.ui.draw.scale
+import androidx.compose.ui.geometry.Offset
+import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.StrokeCap
 import androidx.compose.ui.graphics.drawscope.Stroke
@@ -37,6 +42,13 @@ import com.speedwatch.app.SpeedWatchApplication
 import com.speedwatch.app.domain.NetworkDetails
 import com.speedwatch.app.ui.components.AdBanner
 import com.speedwatch.app.ui.components.SpeedWatchTopBar
+import com.speedwatch.app.ui.theme.DarkNavy
+import com.speedwatch.app.ui.theme.ElectricCyan
+import com.speedwatch.app.ui.theme.BrightBlue
+import com.speedwatch.app.ui.theme.DeepIndigo
+import com.speedwatch.app.ui.theme.NeonGreen
+import com.speedwatch.app.ui.theme.AmberWarning
+import com.speedwatch.app.ui.theme.CoralRed
 import java.util.Locale
 import kotlin.math.PI
 import kotlin.math.cos
@@ -47,7 +59,7 @@ import kotlin.math.sin
 fun DashboardScreen(onNavigateToPremium: () -> Unit) {
     val context = LocalContext.current
     val app = context.applicationContext as SpeedWatchApplication
-    
+
     if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU) {
         val notificationPermissionState = rememberPermissionState(
             Manifest.permission.POST_NOTIFICATIONS
@@ -62,17 +74,17 @@ fun DashboardScreen(onNavigateToPremium: () -> Unit) {
     val viewModel: DashboardViewModel = viewModel {
         DashboardViewModel(app.repository, app.speedMeasurer, app.networkInfoProvider, app.notificationHelper)
     }
-    
+
     val uiState by viewModel.uiState.collectAsState()
     val settings by app.repository.ispSettings.collectAsState(initial = null)
     val networkDetails by viewModel.networkDetails.collectAsState()
-    
+
     var showTooltip by remember { mutableStateOf<String?>(null) }
     var showProNag by remember { mutableStateOf(false) }
     var showInsights by remember { mutableStateOf(false) }
 
     Scaffold(
-        topBar = { 
+        topBar = {
             SpeedWatchTopBar(
                 title = "Dashboard",
                 actions = {
@@ -81,12 +93,12 @@ fun DashboardScreen(onNavigateToPremium: () -> Unit) {
                             Icon(
                                 imageVector = Icons.Default.Diamond,
                                 contentDescription = "Go Pro",
-                                tint = MaterialTheme.colorScheme.primary
+                                tint = ElectricCyan
                             )
                         }
                     }
                 }
-            ) 
+            )
         }
     ) { innerPadding ->
         Column(
@@ -94,128 +106,233 @@ fun DashboardScreen(onNavigateToPremium: () -> Unit) {
                 .fillMaxSize()
                 .padding(innerPadding)
         ) {
-            // Main content area (Non-Scrollable)
             Column(
                 modifier = Modifier
                     .weight(1f)
                     .fillMaxWidth()
-                    .padding(horizontal = 16.dp),
-                horizontalAlignment = Alignment.CenterHorizontally,
-                verticalArrangement = Arrangement.Center
+                    .verticalScroll(rememberScrollState())
+                    .padding(horizontal = 20.dp),
+                horizontalAlignment = Alignment.CenterHorizontally
             ) {
+                Spacer(modifier = Modifier.height(8.dp))
+
+                NetworkHealthCard(details = networkDetails)
+
+                Spacer(modifier = Modifier.height(16.dp))
+
                 val currentSpeed = when (val state = uiState) {
                     is DashboardUiState.Testing -> state.lastResult
                     is DashboardUiState.Success -> state.download
                     else -> 0.0
                 }.coerceAtLeast(0.0)
-                
-                // Speedometer slightly smaller to fit
-                Speedometer(speed = currentSpeed)
-                
-                Spacer(modifier = Modifier.height(8.dp))
-                
+
+                Speedometer(
+                    speed = currentSpeed,
+                    isTesting = uiState is DashboardUiState.Testing
+                )
+
+                Spacer(modifier = Modifier.height(16.dp))
+
                 AnimatedContent(
                     targetState = uiState,
                     transitionSpec = {
-                        fadeIn(animationSpec = tween(300)) togetherWith fadeOut(animationSpec = tween(300))
+                        (fadeIn(animationSpec = tween(400)) + slideInVertically { it / 2 }) togetherWith
+                                (fadeOut(animationSpec = tween(300)) + slideOutVertically { -it / 2 })
                     },
                     label = "ResultAnimation"
                 ) { state ->
                     if (state is DashboardUiState.Success) {
                         Column(horizontalAlignment = Alignment.CenterHorizontally) {
-                            Row(modifier = Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceEvenly) {
-                                ResultColumn("Download", state.download, "Mbps") {
-                                    showTooltip = "Download speed is how fast you can pull data from the internet."
-                                }
-                                ResultColumn("Upload", state.upload, "Mbps") {
-                                    showTooltip = "Upload speed is how fast you can send data to the internet."
-                                }
+                            Row(
+                                modifier = Modifier.fillMaxWidth(),
+                                horizontalArrangement = Arrangement.spacedBy(12.dp)
+                            ) {
+                                MetricCard(
+                                    modifier = Modifier.weight(1f),
+                                    title = "Download",
+                                    value = "%.1f".format(Locale.getDefault(), state.download),
+                                    unit = "Mbps",
+                                    icon = Icons.Default.ArrowDownward,
+                                    iconColor = ElectricCyan,
+                                    onClickInfo = {
+                                        showTooltip = "Download speed measures how quickly data transfers to your device."
+                                    }
+                                )
+                                MetricCard(
+                                    modifier = Modifier.weight(1f),
+                                    title = "Upload",
+                                    value = "%.1f".format(Locale.getDefault(), state.upload),
+                                    unit = "Mbps",
+                                    icon = Icons.Default.ArrowUpward,
+                                    iconColor = BrightBlue,
+                                    onClickInfo = {
+                                        showTooltip = "Upload speed measures how fast data is sent from your device."
+                                    }
+                                )
                             }
                             Spacer(modifier = Modifier.height(12.dp))
-                            Row(modifier = Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceEvenly) {
-                                ResultColumn("Ping", state.latency.toDouble(), "ms") {
-                                    showTooltip = "Latency (Ping) is the delay in your connection. Lower is better for gaming."
-                                }
-                                ResultColumn("Jitter", state.jitter, "ms") {
-                                    showTooltip = "Jitter measures the stability of your ping. High jitter causes lag spikes."
-                                }
+                            Row(
+                                modifier = Modifier.fillMaxWidth(),
+                                horizontalArrangement = Arrangement.spacedBy(12.dp)
+                            ) {
+                                MetricCard(
+                                    modifier = Modifier.weight(1f),
+                                    title = "Ping",
+                                    value = "${state.latency}",
+                                    unit = "ms",
+                                    icon = Icons.Default.Timer,
+                                    iconColor = DeepIndigo,
+                                    onClickInfo = {
+                                        showTooltip = "Ping (latency) is connection response delay. Lower values mean smoother gaming & calls."
+                                    }
+                                )
+                                MetricCard(
+                                    modifier = Modifier.weight(1f),
+                                    title = "Jitter",
+                                    value = "%.1f".format(Locale.getDefault(), state.jitter),
+                                    unit = "ms",
+                                    icon = Icons.Default.Equalizer,
+                                    iconColor = NeonGreen,
+                                    onClickInfo = {
+                                        showTooltip = "Jitter measures ping stability over time. Low jitter prevents lag spikes."
+                                    }
+                                )
                             }
-                            
+
+                            Spacer(modifier = Modifier.height(12.dp))
+
                             StabilityBadge(jitter = state.jitter)
 
-                        if (settings?.isPremium == true) {
-                            TextButton(onClick = { showInsights = !showInsights }) {
-                                Text(if (showInsights) "Hide Technical Insights" else "Show Technical Insights", style = MaterialTheme.typography.labelSmall)
-                            }
-                            if (showInsights) {
-                                TechnicalInsightsCard(networkDetails)
+                            if (settings?.isPremium == true) {
+                                TextButton(
+                                    onClick = { showInsights = !showInsights },
+                                    modifier = Modifier.padding(top = 4.dp)
+                                ) {
+                                    Icon(
+                                        imageVector = if (showInsights) Icons.Default.ExpandLess else Icons.Default.ExpandMore,
+                                        contentDescription = null,
+                                        modifier = Modifier.size(18.dp)
+                                    )
+                                    Spacer(modifier = Modifier.width(4.dp))
+                                    Text(
+                                        if (showInsights) "Hide Technical Insights" else "Show Technical Insights",
+                                        style = MaterialTheme.typography.labelMedium
+                                    )
+                                }
+
+                                AnimatedVisibility(
+                                    visible = showInsights,
+                                    enter = expandVertically() + fadeIn(),
+                                    exit = shrinkVertically() + fadeOut()
+                                ) {
+                                    TechnicalInsightsCard(networkDetails)
+                                }
                             }
                         }
-                    }
-                } else if (state is DashboardUiState.Testing) {
-                        Text(
-                            text = "Measuring ${state.stage}...",
-                            style = MaterialTheme.typography.titleMedium,
-                            color = MaterialTheme.colorScheme.primary
-                        )
+                    } else if (state is DashboardUiState.Testing) {
+                        Surface(
+                            shape = RoundedCornerShape(100.dp),
+                            color = ElectricCyan.copy(alpha = 0.12f),
+                            border = BorderStroke(1.dp, ElectricCyan.copy(alpha = 0.4f))
+                        ) {
+                            Row(
+                                modifier = Modifier.padding(horizontal = 20.dp, vertical = 8.dp),
+                                verticalAlignment = Alignment.CenterVertically
+                            ) {
+                                CircularProgressIndicator(
+                                    modifier = Modifier.size(16.dp),
+                                    strokeWidth = 2.dp,
+                                    color = ElectricCyan
+                                )
+                                Spacer(modifier = Modifier.width(10.dp))
+                                Text(
+                                    text = "Measuring ${state.stage}...",
+                                    style = MaterialTheme.typography.titleSmall,
+                                    fontWeight = FontWeight.Bold,
+                                    color = ElectricCyan
+                                )
+                            }
+                        }
                     } else {
                         Text(
-                            text = "Ready to test",
-                            style = MaterialTheme.typography.titleMedium,
-                            color = MaterialTheme.colorScheme.outline
+                            text = "Tap below to run a speed test",
+                            style = MaterialTheme.typography.bodyMedium,
+                            color = MaterialTheme.colorScheme.onSurfaceVariant
                         )
                     }
                 }
-                
-                Spacer(modifier = Modifier.height(16.dp))
-                
+
+                Spacer(modifier = Modifier.height(20.dp))
+
+                val isTesting = uiState is DashboardUiState.Testing
                 Button(
                     onClick = { viewModel.runSpeedTest() },
-                    enabled = uiState !is DashboardUiState.Testing,
-                    shape = MaterialTheme.shapes.large,
-                    modifier = Modifier.height(56.dp).fillMaxWidth(0.7f),
-                    elevation = ButtonDefaults.buttonElevation(defaultElevation = 4.dp)
-                ) {
-                    Text(
-                        if (uiState is DashboardUiState.Testing) "Testing..." else "Start Speed Test",
-                        style = MaterialTheme.typography.titleMedium
+                    enabled = !isTesting,
+                    shape = RoundedCornerShape(28.dp),
+                    colors = ButtonDefaults.buttonColors(
+                        containerColor = ElectricCyan,
+                        contentColor = Color(0xFF00363D)
+                    ),
+                    modifier = Modifier
+                        .height(56.dp)
+                        .fillMaxWidth(0.75f),
+                    elevation = ButtonDefaults.buttonElevation(
+                        defaultElevation = 6.dp,
+                        pressedElevation = 2.dp
                     )
+                ) {
+                    Row(
+                        verticalAlignment = Alignment.CenterVertically,
+                        horizontalArrangement = Arrangement.Center
+                    ) {
+                        Icon(
+                            imageVector = if (isTesting) Icons.Default.HourglassTop else Icons.Default.PlayArrow,
+                            contentDescription = null,
+                            modifier = Modifier.size(22.dp)
+                        )
+                        Spacer(modifier = Modifier.width(8.dp))
+                        Text(
+                            text = if (isTesting) "Testing..." else "Start Speed Test",
+                            style = MaterialTheme.typography.titleMedium,
+                            fontWeight = FontWeight.Bold
+                        )
+                    }
                 }
-                
+
                 if (uiState is DashboardUiState.Error) {
                     Text(
                         text = (uiState as DashboardUiState.Error).message,
                         color = MaterialTheme.colorScheme.error,
+                        style = MaterialTheme.typography.bodyMedium,
                         modifier = Modifier.padding(top = 12.dp)
                     )
                 }
+
+                Spacer(modifier = Modifier.height(20.dp))
             }
 
-            // Bottom Anchored Ad Banner (Fixed above nav bar)
             if (settings?.isPremium != true) {
-                Box(
-                    modifier = Modifier
-                        .fillMaxWidth()
-                        .background(MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.3f))
+                Surface(
+                    modifier = Modifier.fillMaxWidth(),
+                    color = MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.4f),
+                    tonalElevation = 2.dp
                 ) {
-                    Column {
-                        Box(modifier = Modifier.fillMaxWidth()) {
-                            AdBanner(modifier = Modifier.padding(vertical = 4.dp))
-                            
-                            IconButton(
-                                onClick = { showProNag = true },
-                                modifier = Modifier
-                                    .align(Alignment.TopEnd)
-                                    .size(32.dp)
-                                    .padding(4.dp)
-                            ) {
-                                Icon(
-                                    imageVector = Icons.Default.Close,
-                                    contentDescription = "Remove Ads",
-                                    modifier = Modifier.size(16.dp),
-                                    tint = MaterialTheme.colorScheme.outline
-                                )
-                            }
+                    Box(modifier = Modifier.fillMaxWidth()) {
+                        AdBanner(modifier = Modifier.padding(vertical = 4.dp))
+
+                        IconButton(
+                            onClick = { showProNag = true },
+                            modifier = Modifier
+                                .align(Alignment.TopEnd)
+                                .size(32.dp)
+                                .padding(4.dp)
+                        ) {
+                            Icon(
+                                imageVector = Icons.Default.Close,
+                                contentDescription = "Remove Ads",
+                                modifier = Modifier.size(16.dp),
+                                tint = MaterialTheme.colorScheme.outline
+                            )
                         }
                     }
                 }
@@ -226,91 +343,240 @@ fun DashboardScreen(onNavigateToPremium: () -> Unit) {
     if (showTooltip != null) {
         AlertDialog(
             onDismissRequest = { showTooltip = null },
-            confirmButton = { TextButton(onClick = { showTooltip = null }) { Text("Got it") } },
-            title = { Text("Network Insight") },
-            text = { Text(showTooltip!!) }
+            confirmButton = {
+                TextButton(onClick = { showTooltip = null }) { Text("Got it") }
+            },
+            title = { Text("Network Insight", fontWeight = FontWeight.Bold) },
+            text = { Text(showTooltip!!, style = MaterialTheme.typography.bodyMedium) }
         )
     }
 
     if (showProNag) {
         AlertDialog(
             onDismissRequest = { showProNag = false },
-            confirmButton = { 
-                Button(onClick = { 
-                    showProNag = false
-                    onNavigateToPremium()
-                }) { Text("Go Pro") } 
+            confirmButton = {
+                Button(
+                    onClick = {
+                        showProNag = false
+                        onNavigateToPremium()
+                    },
+                    colors = ButtonDefaults.buttonColors(containerColor = ElectricCyan, contentColor = Color(0xFF00363D))
+                ) { Text("Go Pro") }
             },
             dismissButton = {
                 TextButton(onClick = { showProNag = false }) { Text("Maybe Later") }
             },
-            title = { Text("Remove Advertisements") },
-            text = { Text("Upgrade to SpeedWatch Pro to remove ads, unlock unlimited history, and get hourly background checks.") }
+            title = { Text("Remove Advertisements", fontWeight = FontWeight.Bold) },
+            text = { Text("Upgrade to SpeedWatch Pro to remove ads, unlock unlimited history, and enable automatic background checks.") }
         )
     }
 }
 
 @Composable
-fun ResultColumn(label: String, value: Double, unit: String, onInfoClick: () -> Unit) {
-    Column(horizontalAlignment = Alignment.CenterHorizontally) {
-        Row(verticalAlignment = Alignment.CenterVertically) {
-            Text(text = label, style = MaterialTheme.typography.labelMedium, color = MaterialTheme.colorScheme.outline)
-            IconButton(onClick = onInfoClick, modifier = Modifier.size(24.dp)) {
-                Icon(Icons.Default.Info, contentDescription = null, modifier = Modifier.size(14.dp), tint = MaterialTheme.colorScheme.outline)
+fun NetworkHealthCard(details: NetworkDetails?) {
+    Surface(
+        modifier = Modifier.fillMaxWidth(),
+        shape = RoundedCornerShape(20.dp),
+        color = MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.45f),
+        border = BorderStroke(1.dp, MaterialTheme.colorScheme.outline.copy(alpha = 0.2f))
+    ) {
+        Row(
+            modifier = Modifier.padding(16.dp),
+            verticalAlignment = Alignment.CenterVertically
+        ) {
+            val pulseInfinite = rememberInfiniteTransition(label = "Pulse")
+            val pulseAlpha by pulseInfinite.animateFloat(
+                initialValue = 0.4f,
+                targetValue = 1f,
+                animationSpec = infiniteRepeatable(
+                    animation = tween(1000, easing = LinearEasing),
+                    repeatMode = RepeatMode.Reverse
+                ),
+                label = "AlphaPulse"
+            )
+
+            Box(
+                modifier = Modifier
+                    .size(44.dp)
+                    .clip(CircleShape)
+                    .background(
+                        if (details?.isValidated == true) NeonGreen.copy(alpha = 0.15f) else BrightBlue.copy(alpha = 0.15f)
+                    ),
+                contentAlignment = Alignment.Center
+            ) {
+                Icon(
+                    imageVector = when (details?.transport) {
+                        "Wi-Fi" -> Icons.Default.Wifi
+                        "Cellular" -> Icons.Default.NetworkCheck
+                        else -> Icons.Default.Speed
+                    },
+                    contentDescription = null,
+                    tint = if (details?.isValidated == true) NeonGreen else BrightBlue,
+                    modifier = Modifier.size(24.dp)
+                )
+            }
+
+            Spacer(modifier = Modifier.width(14.dp))
+
+            Column(modifier = Modifier.weight(1f)) {
+                Row(verticalAlignment = Alignment.CenterVertically) {
+                    Box(
+                        modifier = Modifier
+                            .size(8.dp)
+                            .clip(CircleShape)
+                            .background(
+                                if (details?.isValidated == true) NeonGreen.copy(alpha = pulseAlpha) else AmberWarning
+                            )
+                    )
+                    Spacer(modifier = Modifier.width(8.dp))
+                    Text(
+                        text = if (details?.isValidated == true) stringResource(R.string.connected_validated) else stringResource(R.string.checking_connection),
+                        style = MaterialTheme.typography.titleSmall,
+                        fontWeight = FontWeight.Bold
+                    )
+                }
+                Spacer(modifier = Modifier.height(2.dp))
+                Text(
+                    text = details?.let { "${it.transport} • ${it.detailInfo}" } ?: stringResource(R.string.identifying_network),
+                    style = MaterialTheme.typography.bodySmall,
+                    color = MaterialTheme.colorScheme.onSurfaceVariant
+                )
             }
         }
-        Text(
-            text = if (unit == "ms") value.toInt().toString() else String.format(Locale.getDefault(), "%.1f", value),
-            style = MaterialTheme.typography.headlineMedium,
-            fontWeight = FontWeight.Bold
-        )
-        Text(text = unit, style = MaterialTheme.typography.labelSmall)
+    }
+}
+
+@Composable
+fun MetricCard(
+    modifier: Modifier = Modifier,
+    title: String,
+    value: String,
+    unit: String,
+    icon: androidx.compose.ui.graphics.vector.ImageVector,
+    iconColor: Color,
+    onClickInfo: () -> Unit
+) {
+    Surface(
+        modifier = modifier.clip(RoundedCornerShape(16.dp)),
+        color = MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.35f),
+        border = BorderStroke(1.dp, iconColor.copy(alpha = 0.25f))
+    ) {
+        Column(
+            modifier = Modifier.padding(14.dp),
+            horizontalAlignment = Alignment.Start
+        ) {
+            Row(
+                modifier = Modifier.fillMaxWidth(),
+                horizontalArrangement = Arrangement.SpaceBetween,
+                verticalAlignment = Alignment.CenterVertically
+            ) {
+                Row(verticalAlignment = Alignment.CenterVertically) {
+                    Icon(
+                        imageVector = icon,
+                        contentDescription = null,
+                        tint = iconColor,
+                        modifier = Modifier.size(18.dp)
+                    )
+                    Spacer(modifier = Modifier.width(6.dp))
+                    Text(
+                        text = title,
+                        style = MaterialTheme.typography.labelMedium,
+                        color = MaterialTheme.colorScheme.onSurfaceVariant,
+                        fontWeight = FontWeight.SemiBold
+                    )
+                }
+                Icon(
+                    imageVector = Icons.Default.Info,
+                    contentDescription = null,
+                    tint = MaterialTheme.colorScheme.outline,
+                    modifier = Modifier
+                        .size(16.dp)
+                        .clickable { onClickInfo() }
+                )
+            }
+
+            Spacer(modifier = Modifier.height(8.dp))
+
+            Row(verticalAlignment = Alignment.Bottom) {
+                Text(
+                    text = value,
+                    style = MaterialTheme.typography.headlineMedium.copy(
+                        fontSize = 24.sp,
+                        fontWeight = FontWeight.ExtraBold
+                    )
+                )
+                Spacer(modifier = Modifier.width(4.dp))
+                Text(
+                    text = unit,
+                    style = MaterialTheme.typography.labelMedium,
+                    color = MaterialTheme.colorScheme.onSurfaceVariant,
+                    modifier = Modifier.padding(bottom = 3.dp)
+                )
+            }
+        }
     }
 }
 
 @Composable
 fun StabilityBadge(jitter: Double) {
     val (text, color) = when {
-        jitter < 5 -> "Rock Solid" to Color(0xFF4CAF50)
-        jitter < 15 -> "Stable" to Color(0xFF8BC34A)
-        jitter < 30 -> "Unstable" to Color(0xFFFFC107)
-        else -> "Very Jittery" to Color(0xFFF44336)
+        jitter < 5 -> "Rock Solid" to NeonGreen
+        jitter < 15 -> "Stable" to BrightBlue
+        jitter < 30 -> "Unstable" to AmberWarning
+        else -> "Very Jittery" to CoralRed
     }
-    
+
     Surface(
-        modifier = Modifier.padding(top = 12.dp),
-        color = color.copy(alpha = 0.1f),
-        shape = MaterialTheme.shapes.small,
-        border = androidx.compose.foundation.BorderStroke(1.dp, color.copy(alpha = 0.5f))
+        color = color.copy(alpha = 0.12f),
+        shape = RoundedCornerShape(100.dp),
+        border = BorderStroke(1.dp, color.copy(alpha = 0.4f))
     ) {
-        Text(
-            text = stringResource(R.string.stability_label, text),
-            modifier = Modifier.padding(horizontal = 12.dp, vertical = 4.dp),
-            style = MaterialTheme.typography.labelSmall,
-            color = color,
-            fontWeight = FontWeight.Bold
-        )
+        Row(
+            modifier = Modifier.padding(horizontal = 14.dp, vertical = 6.dp),
+            verticalAlignment = Alignment.CenterVertically
+        ) {
+            Box(
+                modifier = Modifier
+                    .size(6.dp)
+                    .clip(CircleShape)
+                    .background(color)
+            )
+            Spacer(modifier = Modifier.width(8.dp))
+            Text(
+                text = stringResource(R.string.stability_label, text),
+                style = MaterialTheme.typography.labelSmall,
+                color = color,
+                fontWeight = FontWeight.Bold
+            )
+        }
     }
 }
 
 @Composable
 fun TechnicalInsightsCard(details: NetworkDetails?) {
     if (details == null) return
-    
-    Card(
+
+    Surface(
         modifier = Modifier
             .fillMaxWidth()
             .padding(top = 8.dp),
-        colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.3f))
+        shape = RoundedCornerShape(16.dp),
+        color = MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.3f),
+        border = BorderStroke(1.dp, MaterialTheme.colorScheme.outline.copy(alpha = 0.15f))
     ) {
-        Column(modifier = Modifier.padding(12.dp)) {
-            Text("Technical Insights", style = MaterialTheme.typography.labelLarge, color = MaterialTheme.colorScheme.primary)
+        Column(modifier = Modifier.padding(14.dp)) {
+            Text(
+                text = "Technical Insights",
+                style = MaterialTheme.typography.labelLarge,
+                color = ElectricCyan,
+                fontWeight = FontWeight.Bold
+            )
             Spacer(modifier = Modifier.height(8.dp))
-            
+
             InsightRow("Local IP", details.localIp ?: "Unknown")
             InsightRow("Interface", details.interfaceName ?: "Unknown")
             if (details.isVpn) {
-                InsightRow("VPN", "Active", color = MaterialTheme.colorScheme.error)
+                InsightRow("VPN", "Active", color = CoralRed)
             }
             if (details.dnsServers.isNotEmpty()) {
                 InsightRow("Primary DNS", details.dnsServers.first())
@@ -322,65 +588,120 @@ fun TechnicalInsightsCard(details: NetworkDetails?) {
 
 @Composable
 fun InsightRow(label: String, value: String, color: Color = MaterialTheme.colorScheme.onSurface) {
-    Row(modifier = Modifier.fillMaxWidth().padding(vertical = 2.dp), horizontalArrangement = Arrangement.SpaceBetween) {
+    Row(
+        modifier = Modifier
+            .fillMaxWidth()
+            .padding(vertical = 3.dp),
+        horizontalArrangement = Arrangement.SpaceBetween
+    ) {
         Text(label, style = MaterialTheme.typography.labelSmall, color = MaterialTheme.colorScheme.outline)
         Text(value, style = MaterialTheme.typography.labelSmall, fontWeight = FontWeight.Bold, color = color)
     }
 }
 
 @Composable
-fun Speedometer(speed: Double, maxSpeed: Double = 100.0) {
-    val animatedSpeed by animateFloatAsState(targetValue = speed.toFloat(), label = "SpeedAnimation")
-    val primaryColor = MaterialTheme.colorScheme.primary
-    val secondaryColor = MaterialTheme.colorScheme.secondaryContainer
-    
-    // Increased container size and added internal padding to prevent needle/stroke clipping
-    Box(contentAlignment = Alignment.Center, modifier = Modifier.size(260.dp).padding(16.dp)) {
+fun Speedometer(speed: Double, maxSpeed: Double = 100.0, isTesting: Boolean = false) {
+    val animatedSpeed by animateFloatAsState(
+        targetValue = speed.toFloat(),
+        animationSpec = spring(
+            stiffness = Spring.StiffnessLow,
+            dampingRatio = Spring.DampingRatioLowBouncy
+        ),
+        label = "SpeedAnimation"
+    )
+
+    val trackColor = MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.5f)
+
+    Box(
+        contentAlignment = Alignment.Center,
+        modifier = Modifier
+            .size(270.dp)
+            .padding(12.dp)
+    ) {
         Canvas(modifier = Modifier.fillMaxSize()) {
-            val strokeWidth = 20.dp.toPx()
-            // radius calculated based on padded size
+            val strokeWidth = 22.dp.toPx()
             val radius = (size.minDimension - strokeWidth) / 2
-            
-            // Draw background arc
+            val centerOffset = Offset(size.width / 2, size.height / 2)
+
+            // Draw Background Track Arc
             drawArc(
-                color = secondaryColor,
+                color = trackColor,
                 startAngle = 135f,
                 sweepAngle = 270f,
                 useCenter = false,
                 style = Stroke(width = strokeWidth, cap = StrokeCap.Round)
             )
-            
-            // Draw speed arc
-            val sweepAngle = (animatedSpeed / maxSpeed.toFloat()) * 270f
-            drawArc(
-                color = primaryColor,
-                startAngle = 135f,
-                sweepAngle = sweepAngle.coerceAtMost(270f),
-                useCenter = false,
-                style = Stroke(width = strokeWidth, cap = StrokeCap.Round)
-            )
-            
-            // Draw needle
-            val angleRad = (135f + sweepAngle.coerceAtMost(270f)) * (PI / 180f)
-            val needleLength = radius * 0.8f
-            val startX = size.width / 2
-            val startY = size.height / 2
-            val endX = startX + cos(angleRad).toFloat() * needleLength
-            val endY = startY + sin(angleRad).toFloat() * needleLength
-            
+
+            // Draw Gradient Speed Sweep Arc
+            val sweepAngle = ((animatedSpeed / maxSpeed.toFloat()) * 270f).coerceIn(0f, 270f)
+            if (sweepAngle > 0f) {
+                drawArc(
+                    brush = Brush.sweepGradient(
+                        0.0f to ElectricCyan,
+                        0.5f to BrightBlue,
+                        1.0f to DeepIndigo
+                    ),
+                    startAngle = 135f,
+                    sweepAngle = sweepAngle,
+                    useCenter = false,
+                    style = Stroke(width = strokeWidth, cap = StrokeCap.Round)
+                )
+            }
+
+            // Draw Gauge Needle
+            val angleRad = (135f + sweepAngle) * (PI / 180f)
+            val needleLength = radius * 0.75f
+            val endX = centerOffset.x + cos(angleRad).toFloat() * needleLength
+            val endY = centerOffset.y + sin(angleRad).toFloat() * needleLength
+
+            // Needle shadow & main line
             drawLine(
-                color = primaryColor,
-                start = center,
-                end = androidx.compose.ui.geometry.Offset(endX, endY),
-                strokeWidth = 4.dp.toPx(),
+                color = ElectricCyan,
+                start = centerOffset,
+                end = Offset(endX, endY),
+                strokeWidth = 5.dp.toPx(),
                 cap = StrokeCap.Round
             )
+
+            // Needle Center Hub
+            drawCircle(
+                color = ElectricCyan,
+                radius = 8.dp.toPx(),
+                center = centerOffset
+            )
+            drawCircle(
+                color = DarkNavy,
+                radius = 4.dp.toPx(),
+                center = centerOffset
+            )
         }
-        
-        Column(horizontalAlignment = Alignment.CenterHorizontally) {
-            Text(text = "SPEED", style = MaterialTheme.typography.labelMedium, color = Color.Gray)
-            Text(text = String.format(Locale.getDefault(), "%.1f", animatedSpeed), fontSize = 48.sp, fontWeight = FontWeight.Black)
-            Text(text = "Mbps", style = MaterialTheme.typography.labelSmall)
+
+        Column(
+            horizontalAlignment = Alignment.CenterHorizontally,
+            modifier = Modifier.padding(top = 28.dp)
+        ) {
+            Text(
+                text = "SPEED",
+                style = MaterialTheme.typography.labelMedium.copy(
+                    letterSpacing = 2.sp,
+                    fontWeight = FontWeight.Bold
+                ),
+                color = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.7f)
+            )
+            Text(
+                text = String.format(Locale.getDefault(), "%.1f", animatedSpeed),
+                fontSize = 44.sp,
+                fontWeight = FontWeight.Black,
+                letterSpacing = (-1).sp,
+                color = MaterialTheme.colorScheme.onSurface
+            )
+            Text(
+                text = "Mbps",
+                style = MaterialTheme.typography.labelLarge,
+                fontWeight = FontWeight.Bold,
+                color = ElectricCyan
+            )
         }
     }
 }
+

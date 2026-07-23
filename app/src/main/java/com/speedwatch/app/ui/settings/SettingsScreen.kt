@@ -2,9 +2,11 @@ package com.speedwatch.app.ui.settings
 
 import android.content.Intent
 import android.net.Uri
+import androidx.compose.foundation.BorderStroke
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.rememberScrollState
+import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.text.KeyboardOptions
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
@@ -27,6 +29,9 @@ import com.speedwatch.app.domain.PdfReportManager
 import com.speedwatch.app.ui.components.PreferenceCategoryHeader
 import com.speedwatch.app.ui.components.PreferenceRow
 import com.speedwatch.app.ui.components.SpeedWatchTopBar
+import com.speedwatch.app.ui.theme.ElectricCyan
+import com.speedwatch.app.ui.theme.BrightBlue
+import com.speedwatch.app.ui.theme.CoralRed
 import kotlinx.coroutines.flow.firstOrNull
 import kotlinx.coroutines.launch
 import java.text.SimpleDateFormat
@@ -40,16 +45,16 @@ fun SettingsScreen(onNavigateToPremium: () -> Unit) {
     val viewModel: SettingsViewModel = viewModel {
         SettingsViewModel(app.repository)
     }
-    
+
     val savedSettings by viewModel.settings.collectAsState()
     val allLogs by app.repository.allLogs.collectAsState(initial = emptyList())
     val scope = rememberCoroutineScope()
-    
+
     var ispName by remember { mutableStateOf("") }
     var planSpeed by remember { mutableStateOf("") }
     var planSpeedError by remember { mutableStateOf<String?>(null) }
     var showThemeDialog by remember { mutableStateOf(false) }
-    
+
     LaunchedEffect(savedSettings) {
         savedSettings?.let {
             ispName = it.ispName
@@ -66,25 +71,28 @@ fun SettingsScreen(onNavigateToPremium: () -> Unit) {
                 .fillMaxSize()
                 .padding(innerPadding)
                 .verticalScroll(rememberScrollState())
+                .padding(horizontal = 20.dp, vertical = 8.dp)
         ) {
             // PRO PROMO / STATUS
             if (savedSettings?.isPremium != true) {
-                Card(
+                Surface(
                     modifier = Modifier
                         .fillMaxWidth()
-                        .padding(16.dp),
-                    colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.primaryContainer),
+                        .padding(vertical = 8.dp),
+                    shape = RoundedCornerShape(20.dp),
+                    color = ElectricCyan.copy(alpha = 0.12f),
+                    border = BorderStroke(1.dp, ElectricCyan.copy(alpha = 0.35f)),
                     onClick = onNavigateToPremium
                 ) {
                     Row(
                         modifier = Modifier.padding(16.dp),
                         verticalAlignment = Alignment.CenterVertically
                     ) {
-                        Icon(Icons.Default.Diamond, contentDescription = null, tint = MaterialTheme.colorScheme.primary)
+                        Icon(Icons.Default.Diamond, contentDescription = null, tint = ElectricCyan, modifier = Modifier.size(28.dp))
                         Spacer(modifier = Modifier.width(16.dp))
                         Column {
-                            Text(stringResource(R.string.go_pro), style = MaterialTheme.typography.titleMedium, fontWeight = FontWeight.Bold)
-                            Text(stringResource(R.string.pro_feature_ads_desc), style = MaterialTheme.typography.bodySmall)
+                            Text(stringResource(R.string.go_pro), style = MaterialTheme.typography.titleMedium, fontWeight = FontWeight.Bold, color = ElectricCyan)
+                            Text(stringResource(R.string.pro_feature_ads_desc), style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
                         }
                     }
                 }
@@ -100,7 +108,7 @@ fun SettingsScreen(onNavigateToPremium: () -> Unit) {
             // REAL-TIME MONITOR (PRO)
             if (savedSettings?.isPremium == true) {
                 PreferenceCategoryHeader("Real-time Monitor (Pro)")
-                
+
                 PreferenceRow(
                     title = "Status Bar Monitor",
                     summary = "Show live speed in notification bar",
@@ -146,42 +154,44 @@ fun SettingsScreen(onNavigateToPremium: () -> Unit) {
 
             // ISP & MONITORING
             PreferenceCategoryHeader("ISP & Monitoring")
-            
+
             PreferenceRow(
                 title = stringResource(R.string.isp_name),
                 summary = ispName.ifEmpty { "Not set" },
                 icon = Icons.Default.Business
             )
-            
-            Column(modifier = Modifier.padding(horizontal = 16.dp)) {
+
+            Column(modifier = Modifier.padding(horizontal = 4.dp, vertical = 4.dp)) {
                 OutlinedTextField(
                     value = ispName,
                     onValueChange = { ispName = it },
                     label = { Text("Provider Name") },
                     modifier = Modifier.fillMaxWidth(),
-                    shape = MaterialTheme.shapes.medium
+                    shape = RoundedCornerShape(14.dp)
                 )
-                
-                Spacer(modifier = Modifier.height(8.dp))
-                
+
+                Spacer(modifier = Modifier.height(10.dp))
+
                 OutlinedTextField(
                     value = planSpeed,
-                    onValueChange = { 
+                    onValueChange = {
                         planSpeed = it
                         planSpeedError = null
                     },
                     label = { Text(stringResource(R.string.plan_speed)) },
                     keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Number),
                     modifier = Modifier.fillMaxWidth(),
-                    shape = MaterialTheme.shapes.medium,
+                    shape = RoundedCornerShape(14.dp),
                     isError = planSpeedError != null,
                     supportingText = {
                         if (planSpeedError != null) {
-                            Text(text = planSpeedError!!, color = MaterialTheme.colorScheme.error)
+                            Text(text = planSpeedError!!, color = CoralRed)
                         }
                     }
                 )
-                
+
+                Spacer(modifier = Modifier.height(8.dp))
+
                 Button(
                     onClick = {
                         val speed = planSpeed.toDoubleOrNull()
@@ -194,9 +204,11 @@ fun SettingsScreen(onNavigateToPremium: () -> Unit) {
                             planSpeedError = "Invalid speed"
                         }
                     },
-                    modifier = Modifier.padding(vertical = 8.dp)
+                    shape = RoundedCornerShape(100.dp),
+                    colors = ButtonDefaults.buttonColors(containerColor = ElectricCyan, contentColor = Color(0xFF00363D)),
+                    modifier = Modifier.padding(vertical = 4.dp)
                 ) {
-                    Text("Update Plan")
+                    Text("Update Plan", fontWeight = FontWeight.Bold)
                 }
             }
 
@@ -233,7 +245,7 @@ fun SettingsScreen(onNavigateToPremium: () -> Unit) {
 
             // NOTIFICATIONS
             PreferenceCategoryHeader("Notifications")
-            
+
             PreferenceRow(
                 title = "Speed Drop Alerts",
                 summary = "Notify when speed is below 80%",
@@ -245,7 +257,7 @@ fun SettingsScreen(onNavigateToPremium: () -> Unit) {
                     )
                 }
             )
-            
+
             PreferenceRow(
                 title = "Monthly Reports",
                 summary = "Notify when monthly PDF is ready",
@@ -272,7 +284,7 @@ fun SettingsScreen(onNavigateToPremium: () -> Unit) {
 
             // APPEARANCE
             PreferenceCategoryHeader("Appearance")
-            
+
             PreferenceRow(
                 title = "App Theme",
                 summary = savedSettings?.themePreference ?: "SYSTEM",
@@ -282,27 +294,26 @@ fun SettingsScreen(onNavigateToPremium: () -> Unit) {
 
             // DATA & PRIVACY
             PreferenceCategoryHeader("Data & Privacy")
-            
+
             PreferenceRow(
                 title = "Monthly Data Cap (MB)",
                 summary = if (savedSettings?.dataUsageCapMB == 0) "Unlimited" else "${savedSettings?.dataUsageCapMB} MB",
                 icon = Icons.Default.Storage
             )
-            
+
             var capValue by remember { mutableStateOf(savedSettings?.dataUsageCapMB?.toString() ?: "0") }
             OutlinedTextField(
                 value = capValue,
-                onValueChange = { 
-                    capValue = it 
+                onValueChange = {
+                    capValue = it
                     it.toIntOrNull()?.let { cap -> viewModel.setDataUsageCap(cap) }
                 },
                 label = { Text("Monthly Budget (0 = Unlimited)") },
                 keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Number),
-                modifier = Modifier.fillMaxWidth().padding(horizontal = 16.dp),
-                shape = MaterialTheme.shapes.medium
+                modifier = Modifier.fillMaxWidth().padding(horizontal = 4.dp),
+                shape = RoundedCornerShape(14.dp)
             )
-            
-            val scope = rememberCoroutineScope()
+
             val hasEnoughData = allLogs.size >= 5
             PreferenceRow(
                 title = "Generate PDF Report",
@@ -335,7 +346,7 @@ fun SettingsScreen(onNavigateToPremium: () -> Unit) {
 
             // SUPPORT & ABOUT
             PreferenceCategoryHeader("Support & About")
-            
+
             PreferenceRow(
                 title = "Rate SpeedWatch",
                 summary = "Support us on the Play Store",
@@ -378,7 +389,7 @@ fun SettingsScreen(onNavigateToPremium: () -> Unit) {
             Text(
                 text = "Version 1.0.0",
                 style = MaterialTheme.typography.bodySmall,
-                color = MaterialTheme.colorScheme.outline,
+                color = MaterialTheme.colorScheme.onSurfaceVariant,
                 modifier = Modifier.align(Alignment.CenterHorizontally)
             )
             Spacer(modifier = Modifier.height(32.dp))
@@ -389,7 +400,7 @@ fun SettingsScreen(onNavigateToPremium: () -> Unit) {
         AlertDialog(
             onDismissRequest = { showThemeDialog = false },
             confirmButton = {},
-            title = { Text("Choose Theme") },
+            title = { Text("Choose Theme", fontWeight = FontWeight.Bold) },
             text = {
                 Column {
                     listOf("SYSTEM", "LIGHT", "DARK").forEach { theme ->
@@ -400,12 +411,12 @@ fun SettingsScreen(onNavigateToPremium: () -> Unit) {
                                     viewModel.setTheme(theme)
                                     showThemeDialog = false
                                 }
-                                .padding(16.dp),
+                                .padding(14.dp),
                             verticalAlignment = Alignment.CenterVertically
                         ) {
                             RadioButton(selected = savedSettings?.themePreference == theme, onClick = null)
-                            Spacer(modifier = Modifier.width(16.dp))
-                            Text(theme)
+                            Spacer(modifier = Modifier.width(14.dp))
+                            Text(theme, fontWeight = FontWeight.Medium)
                         }
                     }
                 }
@@ -413,3 +424,4 @@ fun SettingsScreen(onNavigateToPremium: () -> Unit) {
         )
     }
 }
+

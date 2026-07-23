@@ -1,24 +1,26 @@
 package com.speedwatch.app.ui.diagnostics
 
+import androidx.compose.foundation.BorderStroke
 import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
-import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.shape.CircleShape
-import androidx.compose.foundation.verticalScroll
+import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.*
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
+import androidx.compose.ui.unit.sp
 import androidx.lifecycle.viewmodel.compose.viewModel
 import com.speedwatch.app.R
 import com.speedwatch.app.SpeedWatchApplication
@@ -27,6 +29,12 @@ import com.speedwatch.app.domain.BufferbloatResult
 import com.speedwatch.app.domain.DnsAuditResult
 import com.speedwatch.app.domain.ThrottlingStatus
 import com.speedwatch.app.ui.components.SpeedWatchTopBar
+import com.speedwatch.app.ui.theme.AmberWarning
+import com.speedwatch.app.ui.theme.BrightBlue
+import com.speedwatch.app.ui.theme.CoralRed
+import com.speedwatch.app.ui.theme.DeepIndigo
+import com.speedwatch.app.ui.theme.ElectricCyan
+import com.speedwatch.app.ui.theme.NeonGreen
 import java.text.SimpleDateFormat
 import java.util.*
 
@@ -50,24 +58,30 @@ fun DiagnosticsScreen() {
             modifier = Modifier
                 .fillMaxSize()
                 .padding(innerPadding),
-            contentPadding = PaddingValues(16.dp)
+            contentPadding = PaddingValues(horizontal = 20.dp, vertical = 12.dp),
+            verticalArrangement = Arrangement.spacedBy(10.dp)
         ) {
             item {
                 DataUsageCard(
-                    bytes = dataUsage, 
+                    bytes = dataUsage,
                     capMB = settings?.dataUsageCapMB ?: 0,
                     isPremium = settings?.isPremium == true
                 )
-                Spacer(modifier = Modifier.height(16.dp))
-                Text("Technical Lab Tests", style = MaterialTheme.typography.titleMedium)
                 Spacer(modifier = Modifier.height(8.dp))
+                Text(
+                    text = "Technical Lab Tests",
+                    style = MaterialTheme.typography.titleMedium,
+                    fontWeight = FontWeight.Bold,
+                    color = ElectricCyan
+                )
             }
-            
+
             item {
                 LabTestCard(
                     title = "ISP Throttling Check",
-                    description = "Compares hardware link vs real throughput.",
+                    description = "Compares hardware Wi-Fi/Cell link vs actual throughput.",
                     icon = Icons.Default.Speed,
+                    accentColor = ElectricCyan,
                     onRun = { viewModel.runThrottlingTest() }
                 )
             }
@@ -75,8 +89,9 @@ fun DiagnosticsScreen() {
             item {
                 LabTestCard(
                     title = "Bufferbloat Analysis",
-                    description = "Measures 90th percentile lag under load.",
+                    description = "Measures 90th percentile latency spike under heavy load.",
                     icon = Icons.Default.NetworkCheck,
+                    accentColor = BrightBlue,
                     onRun = { viewModel.runBufferbloatTest() }
                 )
             }
@@ -84,23 +99,29 @@ fun DiagnosticsScreen() {
             item {
                 LabTestCard(
                     title = "DNS Resolution Audit",
-                    description = "Raw UDP queries to Google & Cloudflare.",
+                    description = "Fires raw UDP queries to Cloudflare & Google resolvers.",
                     icon = Icons.Default.Dns,
+                    accentColor = DeepIndigo,
                     onRun = { viewModel.runDnsAudit() }
                 )
             }
 
             item {
-                Spacer(modifier = Modifier.height(24.dp))
-                Text("Activity Benchmarks", style = MaterialTheme.typography.titleMedium)
                 Spacer(modifier = Modifier.height(8.dp))
+                Text(
+                    text = "Activity Benchmarks",
+                    style = MaterialTheme.typography.titleMedium,
+                    fontWeight = FontWeight.Bold,
+                    color = ElectricCyan
+                )
             }
 
             item {
                 LabTestCard(
                     title = "Streaming Quality Audit",
-                    description = "Validate 4K/8K playback capacity.",
+                    description = "Validates 4K / 8K video streaming capacity.",
                     icon = Icons.Default.Movie,
+                    accentColor = NeonGreen,
                     onRun = { viewModel.runStreamingAudit() }
                 )
             }
@@ -108,35 +129,39 @@ fun DiagnosticsScreen() {
             item {
                 LabTestCard(
                     title = "Video Call Health",
-                    description = "Assess Zoom/Teams stability.",
+                    description = "Assesses stability for Zoom, Teams & Google Meet.",
                     icon = Icons.Default.VideoCall,
+                    accentColor = AmberWarning,
                     onRun = { viewModel.runVideoCallAudit() }
                 )
             }
 
             item {
-                Spacer(modifier = Modifier.height(24.dp))
+                Spacer(modifier = Modifier.height(12.dp))
                 Row(
                     modifier = Modifier.fillMaxWidth(),
                     horizontalArrangement = Arrangement.SpaceBetween,
                     verticalAlignment = Alignment.CenterVertically
                 ) {
-                    Text("Audit History", style = MaterialTheme.typography.titleMedium)
+                    Text(
+                        text = "Audit History",
+                        style = MaterialTheme.typography.titleMedium,
+                        fontWeight = FontWeight.Bold
+                    )
                     if (recentAudits.isNotEmpty()) {
                         TextButton(onClick = { viewModel.clearAuditHistory() }) {
-                            Text("Clear All", color = MaterialTheme.colorScheme.error)
+                            Text("Clear All", color = CoralRed, style = MaterialTheme.typography.labelMedium)
                         }
                     }
                 }
-                Spacer(modifier = Modifier.height(8.dp))
             }
 
             if (recentAudits.isEmpty()) {
                 item {
                     Text(
-                        "No audits performed yet. Run a test to generate a certificate.",
-                        style = MaterialTheme.typography.bodySmall,
-                        color = MaterialTheme.colorScheme.outline
+                        text = "No audits performed yet. Run a test above to generate a signed certificate.",
+                        style = MaterialTheme.typography.bodyMedium,
+                        color = MaterialTheme.colorScheme.onSurfaceVariant
                     )
                 }
             } else {
@@ -147,17 +172,19 @@ fun DiagnosticsScreen() {
         }
     }
 
-    // Modal Results
     if (labState is LabUiState.Running) {
         AlertDialog(
             onDismissRequest = {},
             confirmButton = {},
-            title = { Text("Lab Test in Progress") },
+            title = { Text("Lab Test Running", fontWeight = FontWeight.Bold) },
             text = {
-                Column(horizontalAlignment = Alignment.CenterHorizontally, modifier = Modifier.fillMaxWidth()) {
-                    CircularProgressIndicator()
+                Column(
+                    horizontalAlignment = Alignment.CenterHorizontally,
+                    modifier = Modifier.fillMaxWidth()
+                ) {
+                    CircularProgressIndicator(color = ElectricCyan)
                     Spacer(modifier = Modifier.height(16.dp))
-                    Text((labState as LabUiState.Running).message)
+                    Text((labState as LabUiState.Running).message, style = MaterialTheme.typography.bodyMedium)
                 }
             }
         )
@@ -166,8 +193,10 @@ fun DiagnosticsScreen() {
     if (labState is LabUiState.RequireMobileData) {
         AlertDialog(
             onDismissRequest = { viewModel.reset() },
-            confirmButton = { TextButton(onClick = { viewModel.reset() }) { Text("OK") } },
-            title = { Text("Mobile Data Required") },
+            confirmButton = {
+                TextButton(onClick = { viewModel.reset() }) { Text("OK") }
+            },
+            title = { Text("Mobile Data Required", fontWeight = FontWeight.Bold) },
             text = { Text("Advanced Lab tests are designed for Cellular networks. Please disable Wi-Fi and enable Mobile Data to continue.") }
         )
     }
@@ -178,27 +207,59 @@ fun DiagnosticsScreen() {
 }
 
 @Composable
-fun LabTestCard(title: String, description: String, icon: ImageVector, onRun: () -> Unit) {
-    Card(
-        modifier = Modifier.fillMaxWidth().padding(vertical = 8.dp),
-        colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.4f))
+fun LabTestCard(
+    title: String,
+    description: String,
+    icon: ImageVector,
+    accentColor: Color,
+    onRun: () -> Unit
+) {
+    Surface(
+        modifier = Modifier.fillMaxWidth(),
+        shape = RoundedCornerShape(18.dp),
+        color = MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.35f),
+        border = BorderStroke(1.dp, accentColor.copy(alpha = 0.2f))
     ) {
-        Row(modifier = Modifier.padding(16.dp), verticalAlignment = Alignment.CenterVertically) {
+        Row(
+            modifier = Modifier.padding(16.dp),
+            verticalAlignment = Alignment.CenterVertically
+        ) {
             Box(
                 modifier = Modifier
-                    .size(40.dp)
-                    .background(MaterialTheme.colorScheme.primaryContainer, CircleShape),
+                    .size(44.dp)
+                    .clip(CircleShape)
+                    .background(accentColor.copy(alpha = 0.15f)),
                 contentAlignment = Alignment.Center
             ) {
-                Icon(icon, contentDescription = null, tint = MaterialTheme.colorScheme.primary, modifier = Modifier.size(20.dp))
+                Icon(
+                    imageVector = icon,
+                    contentDescription = null,
+                    tint = accentColor,
+                    modifier = Modifier.size(22.dp)
+                )
             }
-            Spacer(modifier = Modifier.width(16.dp))
+            Spacer(modifier = Modifier.width(14.dp))
             Column(modifier = Modifier.weight(1f)) {
-                Text(title, style = MaterialTheme.typography.titleMedium, fontWeight = FontWeight.Bold)
-                Text(description, style = MaterialTheme.typography.bodySmall)
+                Text(
+                    text = title,
+                    style = MaterialTheme.typography.titleSmall,
+                    fontWeight = FontWeight.Bold
+                )
+                Spacer(modifier = Modifier.height(2.dp))
+                Text(
+                    text = description,
+                    style = MaterialTheme.typography.bodySmall,
+                    color = MaterialTheme.colorScheme.onSurfaceVariant
+                )
             }
-            Button(onClick = onRun) {
-                Text("Start")
+            Spacer(modifier = Modifier.width(8.dp))
+            Button(
+                onClick = onRun,
+                shape = RoundedCornerShape(100.dp),
+                colors = ButtonDefaults.buttonColors(containerColor = accentColor, contentColor = Color(0xFF00363D)),
+                contentPadding = PaddingValues(horizontal = 16.dp, vertical = 6.dp)
+            ) {
+                Text("Start", fontWeight = FontWeight.Bold, fontSize = 13.sp)
             }
         }
     }
@@ -207,17 +268,40 @@ fun LabTestCard(title: String, description: String, icon: ImageVector, onRun: ()
 @Composable
 fun AuditHistoryItem(audit: LabAudit) {
     val sdf = remember { SimpleDateFormat("MMM dd, HH:mm", Locale.getDefault()) }
-    Card(
-        modifier = Modifier.fillMaxWidth().padding(vertical = 4.dp),
-        colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surface)
+    Surface(
+        modifier = Modifier.fillMaxWidth(),
+        shape = RoundedCornerShape(14.dp),
+        color = MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.25f),
+        border = BorderStroke(1.dp, MaterialTheme.colorScheme.outline.copy(alpha = 0.15f))
     ) {
-        Row(modifier = Modifier.padding(12.dp), verticalAlignment = Alignment.CenterVertically) {
+        Row(
+            modifier = Modifier.padding(14.dp),
+            verticalAlignment = Alignment.CenterVertically
+        ) {
             Column(modifier = Modifier.weight(1f)) {
-                Text(audit.testType, style = MaterialTheme.typography.labelSmall, color = MaterialTheme.colorScheme.primary)
-                Text(audit.mainResult, style = MaterialTheme.typography.bodyMedium, fontWeight = FontWeight.Bold)
-                Text(sdf.format(Date(audit.timestamp)), style = MaterialTheme.typography.labelSmall, color = Color.Gray)
+                Text(
+                    text = audit.testType,
+                    style = MaterialTheme.typography.labelSmall,
+                    color = ElectricCyan,
+                    fontWeight = FontWeight.Bold
+                )
+                Text(
+                    text = audit.mainResult,
+                    style = MaterialTheme.typography.bodyMedium,
+                    fontWeight = FontWeight.Bold
+                )
+                Text(
+                    text = sdf.format(Date(audit.timestamp)),
+                    style = MaterialTheme.typography.labelSmall,
+                    color = MaterialTheme.colorScheme.onSurfaceVariant
+                )
             }
-            Icon(Icons.Default.Verified, contentDescription = "Audit Certificate", tint = Color(0xFF4CAF50), modifier = Modifier.size(20.dp))
+            Icon(
+                imageVector = Icons.Default.Verified,
+                contentDescription = "Audit Certificate",
+                tint = NeonGreen,
+                modifier = Modifier.size(22.dp)
+            )
         }
     }
 }
@@ -227,39 +311,64 @@ fun DataUsageCard(bytes: Long, capMB: Int, isPremium: Boolean) {
     val usedMB = bytes / (1024.0 * 1024.0)
     val hasCap = isPremium && capMB > 0
     val progress = if (hasCap) (usedMB / capMB).toFloat().coerceIn(0f, 1f) else 0f
-    
+
     val progressColor = when {
-        progress >= 1f -> Color(0xFFF44336)
-        progress >= 0.9f -> Color(0xFFFFC107)
-        else -> Color(0xFF4CAF50)
+        progress >= 1f -> CoralRed
+        progress >= 0.9f -> AmberWarning
+        else -> NeonGreen
     }
 
-    Card(
-        modifier = Modifier.fillMaxWidth().padding(vertical = 8.dp),
-        colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.secondaryContainer.copy(alpha = 0.2f))
+    Surface(
+        modifier = Modifier.fillMaxWidth(),
+        shape = RoundedCornerShape(20.dp),
+        color = MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.4f),
+        border = BorderStroke(1.dp, BrightBlue.copy(alpha = 0.2f))
     ) {
         Column(modifier = Modifier.padding(16.dp)) {
-            Row(modifier = Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceBetween) {
-                Text("Mobile Data Impact", style = MaterialTheme.typography.labelLarge, color = MaterialTheme.colorScheme.secondary)
+            Row(
+                modifier = Modifier.fillMaxWidth(),
+                horizontalArrangement = Arrangement.SpaceBetween,
+                verticalAlignment = Alignment.CenterVertically
+            ) {
+                Text(
+                    text = "Mobile Data Impact",
+                    style = MaterialTheme.typography.labelLarge,
+                    color = BrightBlue,
+                    fontWeight = FontWeight.Bold
+                )
                 if (hasCap) {
-                    Text("Cap: $capMB MB", style = MaterialTheme.typography.labelSmall, color = MaterialTheme.colorScheme.secondary)
+                    Text(
+                        text = "Cap: $capMB MB",
+                        style = MaterialTheme.typography.labelSmall,
+                        color = MaterialTheme.colorScheme.onSurfaceVariant
+                    )
                 }
             }
-            Text("%.2f MB used for testing".format(usedMB), style = MaterialTheme.typography.headlineSmall, fontWeight = FontWeight.Black)
-            
+            Spacer(modifier = Modifier.height(4.dp))
+            Text(
+                text = "%.2f MB used for testing".format(usedMB),
+                style = MaterialTheme.typography.headlineSmall,
+                fontWeight = FontWeight.Black
+            )
+
             if (hasCap) {
-                Spacer(modifier = Modifier.height(12.dp))
+                Spacer(modifier = Modifier.height(10.dp))
                 LinearProgressIndicator(
                     progress = { progress },
-                    modifier = Modifier.fillMaxWidth().height(8.dp),
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .height(8.dp)
+                        .clip(RoundedCornerShape(4.dp)),
                     color = progressColor,
                     trackColor = progressColor.copy(alpha = 0.2f),
-                    strokeCap = androidx.compose.ui.graphics.StrokeCap.Round
                 )
             } else if (!isPremium) {
-                Text("Upgrade to Pro to set a data usage cap and alerts.", style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.outline)
-            } else {
-                Text("Speed tests consume data. Monitor this to stay under your cap.", style = MaterialTheme.typography.bodySmall)
+                Spacer(modifier = Modifier.height(4.dp))
+                Text(
+                    text = "Upgrade to Pro to set a data usage cap and alerts.",
+                    style = MaterialTheme.typography.bodySmall,
+                    color = MaterialTheme.colorScheme.onSurfaceVariant
+                )
             }
         }
     }
@@ -269,12 +378,14 @@ fun DataUsageCard(bytes: Long, capMB: Int, isPremium: Boolean) {
 fun ResultDialog(state: LabUiState, onDismiss: () -> Unit) {
     AlertDialog(
         onDismissRequest = onDismiss,
-        confirmButton = { TextButton(onClick = onDismiss) { Text("Close") } },
-        title = { 
+        confirmButton = {
+            TextButton(onClick = onDismiss) { Text("Close") }
+        },
+        title = {
             Row(verticalAlignment = Alignment.CenterVertically) {
-                Icon(Icons.Default.Verified, contentDescription = null, tint = Color(0xFF4CAF50))
+                Icon(Icons.Default.Verified, contentDescription = null, tint = NeonGreen)
                 Spacer(modifier = Modifier.width(8.dp))
-                Text("Audit Certificate")
+                Text("Audit Certificate", fontWeight = FontWeight.Bold)
             }
         },
         text = {
@@ -283,7 +394,7 @@ fun ResultDialog(state: LabUiState, onDismiss: () -> Unit) {
                 is LabUiState.BufferbloatComplete -> BufferbloatResultView(state.result)
                 is LabUiState.DnsComplete -> DnsResultView(state.result)
                 is LabUiState.QoEComplete -> QoEResultView(state.activity, state.grade, state.details)
-                is LabUiState.Error -> Text(state.message, color = MaterialTheme.colorScheme.error)
+                is LabUiState.Error -> Text(state.message, color = CoralRed)
                 else -> {}
             }
         }
@@ -293,11 +404,20 @@ fun ResultDialog(state: LabUiState, onDismiss: () -> Unit) {
 @Composable
 fun QoEResultView(activity: String, grade: String, details: String) {
     Column {
-        Text("$activity Grade: $grade", style = MaterialTheme.typography.titleLarge, fontWeight = FontWeight.Black, color = MaterialTheme.colorScheme.primary)
+        Text(
+            text = "$activity Grade: $grade",
+            style = MaterialTheme.typography.titleLarge,
+            fontWeight = FontWeight.Black,
+            color = ElectricCyan
+        )
         Spacer(modifier = Modifier.height(8.dp))
         Text(details, style = MaterialTheme.typography.bodyMedium)
         Spacer(modifier = Modifier.height(8.dp))
-        Text("SpeedWatch analyzed latency, jitter, and throughput to determine if your connection supports high-quality $activity.", style = MaterialTheme.typography.bodySmall)
+        Text(
+            text = "SpeedWatch analyzed latency, jitter, and throughput to determine if your connection supports high-quality $activity.",
+            style = MaterialTheme.typography.bodySmall,
+            color = MaterialTheme.colorScheme.onSurfaceVariant
+        )
     }
 }
 
@@ -305,32 +425,46 @@ fun QoEResultView(activity: String, grade: String, details: String) {
 fun ThrottlingResultView(status: ThrottlingStatus) {
     Column {
         val (text, color) = when (status) {
-            is ThrottlingStatus.Optimal -> "Optimal" to Color(0xFF4CAF50)
-            is ThrottlingStatus.HardwareLimited -> "Hardware Limited" to Color(0xFF2196F3)
-            is ThrottlingStatus.Suspicious -> "Suspicious" to Color(0xFFFFC107)
-            is ThrottlingStatus.HighlyLikely -> "Likely Throttled" to Color(0xFFF44336)
+            is ThrottlingStatus.Optimal -> "Optimal" to NeonGreen
+            is ThrottlingStatus.HardwareLimited -> "Hardware Limited" to BrightBlue
+            is ThrottlingStatus.Suspicious -> "Suspicious" to AmberWarning
+            is ThrottlingStatus.HighlyLikely -> "Likely Throttled" to CoralRed
             else -> "Unknown" to Color.Gray
         }
-        Text("Stability Grade: $text", fontWeight = FontWeight.Bold, color = color)
+        Text("Stability Grade: $text", fontWeight = FontWeight.Bold, color = color, style = MaterialTheme.typography.titleMedium)
         Spacer(modifier = Modifier.height(8.dp))
-        val link = when(status) {
+        val link = when (status) {
             is ThrottlingStatus.Optimal -> status.linkSpeed
             is ThrottlingStatus.HardwareLimited -> status.linkSpeed
             is ThrottlingStatus.Suspicious -> status.linkSpeed
             is ThrottlingStatus.HighlyLikely -> status.linkSpeed
             else -> 0.0
         }
-        Text("Your hardware link allows up to %.1f Mbps. SpeedWatch analyzed actual throughput against this link quality.".format(link), style = MaterialTheme.typography.bodySmall)
+        Text(
+            text = "Your hardware link allows up to %.1f Mbps. SpeedWatch analyzed actual throughput against this link quality.".format(link),
+            style = MaterialTheme.typography.bodySmall,
+            color = MaterialTheme.colorScheme.onSurfaceVariant
+        )
     }
 }
 
 @Composable
 fun BufferbloatResultView(result: BufferbloatResult) {
     Column {
-        Text("Stability Grade: ${result.grade}", style = MaterialTheme.typography.titleLarge, fontWeight = FontWeight.Black, color = if (result.grade.startsWith("A")) Color(0xFF4CAF50) else Color(0xFFFFC107))
+        Text(
+            text = "Stability Grade: ${result.grade}",
+            style = MaterialTheme.typography.titleLarge,
+            fontWeight = FontWeight.Black,
+            color = if (result.grade.startsWith("A")) NeonGreen else AmberWarning
+        )
         Spacer(modifier = Modifier.height(8.dp))
         Text("Load Increase: ${result.increaseMs}ms", fontWeight = FontWeight.Bold)
-        Text("This test simulated heavy traffic and measured lag spikes. A grade of ${result.grade} indicates how well your router manages congestion.", style = MaterialTheme.typography.bodySmall)
+        Spacer(modifier = Modifier.height(4.dp))
+        Text(
+            text = "This test simulated heavy traffic and measured lag spikes. A grade of ${result.grade} indicates how well your router manages congestion.",
+            style = MaterialTheme.typography.bodySmall,
+            color = MaterialTheme.colorScheme.onSurfaceVariant
+        )
     }
 }
 
@@ -342,19 +476,30 @@ fun DnsResultView(result: DnsAuditResult) {
         DnsRow("Current Network", result.systemMs)
         Spacer(modifier = Modifier.height(12.dp))
         val fastest = listOf(result.cloudflareMs, result.googleMs, result.systemMs).minOrNull() ?: 0
-        val recommendation = when(fastest) {
+        val recommendation = when (fastest) {
             result.cloudflareMs -> "Cloudflare"
             result.googleMs -> "Google"
             else -> "System Default"
         }
-        Text("Recommendation: Switch to $recommendation for faster web browsing.", fontWeight = FontWeight.Bold, style = MaterialTheme.typography.bodyMedium)
+        Text(
+            text = "Recommendation: Switch to $recommendation for faster web browsing.",
+            fontWeight = FontWeight.Bold,
+            style = MaterialTheme.typography.bodyMedium,
+            color = ElectricCyan
+        )
     }
 }
 
 @Composable
 fun DnsRow(name: String, ms: Long) {
-    Row(modifier = Modifier.fillMaxWidth().padding(vertical = 4.dp), horizontalArrangement = Arrangement.SpaceBetween) {
+    Row(
+        modifier = Modifier
+            .fillMaxWidth()
+            .padding(vertical = 4.dp),
+        horizontalArrangement = Arrangement.SpaceBetween
+    ) {
         Text(name, style = MaterialTheme.typography.bodySmall)
         Text("$ms ms", fontWeight = FontWeight.Bold, style = MaterialTheme.typography.bodySmall)
     }
 }
+
