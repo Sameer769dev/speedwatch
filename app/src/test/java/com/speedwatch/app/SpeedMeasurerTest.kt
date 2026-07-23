@@ -41,7 +41,10 @@ class SpeedMeasurerTest {
 
     @Test
     fun testDownloadSpeedMeasurement() = runBlocking {
-        val result = speedMeasurer.measureDownloadSpeed(durationMs = 3000L)
+        val result = speedMeasurer.measureDownloadSpeed(
+            url = "https://speed.cloudflare.com/__down?bytes=1048576",
+            durationMs = 3000L
+        )
         assertNotNull("Download result should not be null", result)
         assertTrue("Downloaded bytes should be > 0", result!!.bytesUsed > 0)
         assertTrue("Download Mbps should be > 0", result.mbps > 0.0)

@@ -23,7 +23,8 @@ class SpeedMeasurer(private val client: OkHttpClient) {
     ): Flow<SpeedResult> = flow {
         val totalBytes = AtomicLong(0)
         val startTime = System.currentTimeMillis()
-        val rampUpEndTime = startTime + rampUpDurationMs
+        val rampUpDuration = minOf(2000L, durationMs / 3)
+        val rampUpEndTime = startTime + rampUpDuration
         val testEndTime = startTime + durationMs
 
         var bytesAtRampUpEnd = 0L
@@ -34,6 +35,7 @@ class SpeedMeasurer(private val client: OkHttpClient) {
                 launch(Dispatchers.IO) {
                     val request = Request.Builder()
                         .url(url)
+                        .header("User-Agent", "Mozilla/5.0 (Android; Mobile; SpeedWatch/1.0)")
                         .cacheControl(CacheControl.FORCE_NETWORK)
                         .build()
                     try {
@@ -104,7 +106,8 @@ class SpeedMeasurer(private val client: OkHttpClient) {
     ): Flow<SpeedResult> = flow {
         val totalBytes = AtomicLong(0)
         val startTime = System.currentTimeMillis()
-        val rampUpEndTime = startTime + rampUpDurationMs
+        val rampUpDuration = minOf(2000L, durationMs / 3)
+        val rampUpEndTime = startTime + rampUpDuration
         val testEndTime = startTime + durationMs
         val uploadChunk = ByteArray(256 * 1024) { 0.toByte() } // 256 KB chunk
 
@@ -194,18 +197,26 @@ class SpeedMeasurer(private val client: OkHttpClient) {
         url: String = "https://speed.cloudflare.com/__down?bytes=104857600",
         durationMs: Long = defaultDurationMs
     ): SpeedResult? {
-        var lastResult: SpeedResult? = null
-        measureDownloadFlow(url, durationMs).collect { lastResult = it }
-        return lastResult
+        var maxByteResult: SpeedResult? = null
+        measureDownloadFlow(url, durationMs).collect { result ->
+            if (maxByteResult == null || result.bytesUsed >= maxByteResult!!.bytesUsed) {
+                maxByteResult = result
+            }
+        }
+        return maxByteResult
     }
 
     suspend fun measureUploadSpeed(
         url: String = "https://speed.cloudflare.com/__up",
         durationMs: Long = defaultDurationMs
     ): SpeedResult? {
-        var lastResult: SpeedResult? = null
-        measureUploadFlow(url, durationMs).collect { lastResult = it }
-        return lastResult
+        var maxByteResult: SpeedResult? = null
+        measureUploadFlow(url, durationMs).collect { result ->
+            if (maxByteResult == null || result.bytesUsed >= maxByteResult!!.bytesUsed) {
+                maxByteResult = result
+            }
+        }
+        return maxByteResult
     }
 
     suspend fun measureLatency(url: String = "https://1.1.1.1"): Int? = withContext(Dispatchers.IO) {
