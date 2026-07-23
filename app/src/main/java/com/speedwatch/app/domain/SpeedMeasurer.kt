@@ -83,6 +83,18 @@ class SpeedMeasurer(private val client: OkHttpClient) {
                 delay(200)
             }
             jobs.forEach { it.cancelAndJoin() }
+
+            val finalNow = System.currentTimeMillis()
+            val finalTotalBytes = totalBytes.get()
+            val finalMbps = if (hasCapturedRampUp && (finalNow - actualRampUpTime) > 200) {
+                val bytesSinceRampUp = (finalTotalBytes - bytesAtRampUpEnd).coerceAtLeast(0L)
+                val elapsedSec = (finalNow - actualRampUpTime) / 1000.0
+                (bytesSinceRampUp * 8.0) / (elapsedSec * 1_000_000.0)
+            } else {
+                val elapsedSec = (finalNow - startTime).coerceAtLeast(100) / 1000.0
+                (finalTotalBytes * 8.0) / (elapsedSec * 1_000_000.0)
+            }
+            emit(SpeedResult(finalMbps.coerceAtLeast(0.0), finalTotalBytes))
         }
     }
 
@@ -163,6 +175,18 @@ class SpeedMeasurer(private val client: OkHttpClient) {
                 delay(200)
             }
             jobs.forEach { it.cancelAndJoin() }
+
+            val finalNow = System.currentTimeMillis()
+            val finalTotalBytes = totalBytes.get()
+            val finalMbps = if (hasCapturedRampUp && (finalNow - actualRampUpTime) > 200) {
+                val bytesSinceRampUp = (finalTotalBytes - bytesAtRampUpEnd).coerceAtLeast(0L)
+                val elapsedSec = (finalNow - actualRampUpTime) / 1000.0
+                (bytesSinceRampUp * 8.0) / (elapsedSec * 1_000_000.0)
+            } else {
+                val elapsedSec = (finalNow - startTime).coerceAtLeast(100) / 1000.0
+                (finalTotalBytes * 8.0) / (elapsedSec * 1_000_000.0)
+            }
+            emit(SpeedResult(finalMbps.coerceAtLeast(0.0), finalTotalBytes))
         }
     }
 
