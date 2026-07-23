@@ -1,5 +1,6 @@
 package com.speedwatch.app.ui.reports
 
+import android.content.Intent
 import androidx.compose.foundation.background
 import androidx.compose.animation.*
 import androidx.compose.animation.core.*
@@ -9,8 +10,10 @@ import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.CheckCircle
+import androidx.compose.material.icons.filled.Download
 import androidx.compose.material.icons.filled.Info
 import androidx.compose.material.icons.filled.Lock
+import androidx.compose.material.icons.filled.PictureAsPdf
 import androidx.compose.material.icons.filled.Warning
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
@@ -24,11 +27,14 @@ import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
 import androidx.lifecycle.viewmodel.compose.viewModel
+import kotlinx.coroutines.launch
 import com.speedwatch.app.R
 import com.speedwatch.app.SpeedWatchApplication
+import com.speedwatch.app.domain.PdfReportManager
 import com.speedwatch.app.ui.components.SpeedWatchTopBar
 import com.speedwatch.app.ui.navigation.NavKey
-import java.util.Locale
+import java.text.SimpleDateFormat
+import java.util.*
 
 @Composable
 fun ReportsScreen(
@@ -43,9 +49,35 @@ fun ReportsScreen(
     
     val reportData by viewModel.reportState.collectAsState()
     val settings by viewModel.settings.collectAsState(initial = null)
+    val allLogs by app.repository.allLogs.collectAsState(initial = emptyList())
+    val scope = rememberCoroutineScope()
 
     Scaffold(
-        topBar = { SpeedWatchTopBar(stringResource(R.string.reports)) }
+        topBar = { 
+            SpeedWatchTopBar(
+                title = stringResource(R.string.reports),
+                actions = {
+                    if (allLogs.size >= 5) {
+                        IconButton(onClick = {
+                            scope.launch {
+                                val sdf = SimpleDateFormat("MMMM yyyy", Locale.getDefault())
+                                val uri = PdfReportManager(context).generateReport(settings, allLogs, sdf.format(Date()))
+                                uri?.let {
+                                    val intent = Intent(Intent.ACTION_SEND).apply {
+                                        putExtra(Intent.EXTRA_STREAM, it)
+                                        type = "application/pdf"
+                                        addFlags(Intent.FLAG_GRANT_READ_URI_PERMISSION)
+                                    }
+                                    context.startActivity(Intent.createChooser(intent, "Share Report"))
+                                }
+                            }
+                        }) {
+                            Icon(Icons.Default.PictureAsPdf, contentDescription = "Export Report")
+                        }
+                    }
+                }
+            ) 
+        }
     ) { innerPadding ->
         Box(modifier = Modifier.padding(innerPadding)) {
             reportData?.let { data ->

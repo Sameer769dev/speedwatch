@@ -35,6 +35,7 @@ import java.util.*
 @Composable
 fun SettingsScreen(onNavigateToPremium: () -> Unit) {
     val context = LocalContext.current
+    val snackbarHostState = remember { SnackbarHostState() }
     val app = context.applicationContext as SpeedWatchApplication
     val viewModel: SettingsViewModel = viewModel {
         SettingsViewModel(app.repository)
@@ -42,6 +43,7 @@ fun SettingsScreen(onNavigateToPremium: () -> Unit) {
     
     val savedSettings by viewModel.settings.collectAsState()
     val allLogs by app.repository.allLogs.collectAsState(initial = emptyList())
+    val scope = rememberCoroutineScope()
     
     var ispName by remember { mutableStateOf("") }
     var planSpeed by remember { mutableStateOf("") }
@@ -56,7 +58,8 @@ fun SettingsScreen(onNavigateToPremium: () -> Unit) {
     }
 
     Scaffold(
-        topBar = { SpeedWatchTopBar(stringResource(R.string.settings)) }
+        topBar = { SpeedWatchTopBar(stringResource(R.string.settings)) },
+        snackbarHost = { SnackbarHost(snackbarHostState) }
     ) { innerPadding ->
         Column(
             modifier = Modifier
@@ -92,6 +95,53 @@ fun SettingsScreen(onNavigateToPremium: () -> Unit) {
                     icon = Icons.Default.Diamond,
                     onClick = onNavigateToPremium
                 )
+            }
+
+            // REAL-TIME MONITOR (PRO)
+            if (savedSettings?.isPremium == true) {
+                PreferenceCategoryHeader("Real-time Monitor (Pro)")
+                
+                PreferenceRow(
+                    title = "Status Bar Monitor",
+                    summary = "Show live speed in notification bar",
+                    icon = Icons.Default.Speed,
+                    widget = {
+                        Switch(
+                            checked = savedSettings?.statusBarMonitorEnabled == true,
+                            onCheckedChange = { viewModel.setStatusBarMonitor(it) }
+                        )
+                    }
+                )
+
+                if (savedSettings?.statusBarMonitorEnabled == true) {
+                    PreferenceRow(
+                        title = "Show Download Speed",
+                        widget = {
+                            Checkbox(
+                                checked = savedSettings?.showDownloadSpeed == true,
+                                onCheckedChange = { viewModel.setShowDownload(it) }
+                            )
+                        }
+                    )
+                    PreferenceRow(
+                        title = "Show Upload Speed",
+                        widget = {
+                            Checkbox(
+                                checked = savedSettings?.showUploadSpeed == true,
+                                onCheckedChange = { viewModel.setShowUpload(it) }
+                            )
+                        }
+                    )
+                    PreferenceRow(
+                        title = "Show Real-time Ping",
+                        widget = {
+                            Checkbox(
+                                checked = savedSettings?.showPing == true,
+                                onCheckedChange = { viewModel.setShowPing(it) }
+                            )
+                        }
+                    )
+                }
             }
 
             // ISP & MONITORING
@@ -137,6 +187,9 @@ fun SettingsScreen(onNavigateToPremium: () -> Unit) {
                         val speed = planSpeed.toDoubleOrNull()
                         if (speed != null && speed > 0 && speed <= 10000) {
                             viewModel.saveSettings(ispName, speed, speed * 0.1)
+                            scope.launch {
+                                snackbarHostState.showSnackbar("Plan details updated successfully")
+                            }
                         } else {
                             planSpeedError = "Invalid speed"
                         }
@@ -250,12 +303,13 @@ fun SettingsScreen(onNavigateToPremium: () -> Unit) {
             )
             
             val scope = rememberCoroutineScope()
+            val hasEnoughData = allLogs.size >= 5
             PreferenceRow(
                 title = "Generate PDF Report",
-                summary = if (allLogs.size < 5) "Needs 5+ logs" else "Create detailed analysis",
+                summary = if (hasEnoughData) "Create detailed analysis (Also in Reports tab)" else "Needs 5+ logs",
                 icon = Icons.Default.PictureAsPdf,
                 onClick = {
-                    if (allLogs.size >= 5) {
+                    if (hasEnoughData) {
                         scope.launch {
                             val sdf = SimpleDateFormat("MMMM yyyy", Locale.getDefault())
                             val uri = PdfReportManager(context).generateReport(savedSettings, allLogs, sdf.format(Date()))
@@ -296,7 +350,7 @@ fun SettingsScreen(onNavigateToPremium: () -> Unit) {
                 title = "Privacy Policy",
                 icon = Icons.Default.PrivacyTip,
                 onClick = {
-                    val intent = Intent(Intent.ACTION_VIEW, Uri.parse("https://speedwatch.app/privacy"))
+                    val intent = Intent(Intent.ACTION_VIEW, Uri.parse("https://speedwatch-app.vercel.app/privacy.html"))
                     context.startActivity(intent)
                 }
             )
@@ -305,7 +359,7 @@ fun SettingsScreen(onNavigateToPremium: () -> Unit) {
                 title = "Terms of Service",
                 icon = Icons.Default.Description,
                 onClick = {
-                    val intent = Intent(Intent.ACTION_VIEW, Uri.parse("https://speedwatch.app/terms"))
+                    val intent = Intent(Intent.ACTION_VIEW, Uri.parse("https://speedwatch-app.vercel.app/terms.html"))
                     context.startActivity(intent)
                 }
             )

@@ -127,6 +127,42 @@ class DiagnosticsViewModel(
         }
     }
 
+    fun runStreamingAudit() {
+        if (!checkMobileData()) return
+        viewModelScope.launch {
+            _labState.value = LabUiState.Running("Auditing Streaming Quality...")
+            val result = speedMeasurer.measureDownloadSpeed("https://speed.cloudflare.com/__down?bytes=25165824") // 24MB for 4K test
+            if (result != null) {
+                val grade = when {
+                    result.mbps >= 50 -> "8K Ultra HD"
+                    result.mbps >= 25 -> "4K Ultra HD"
+                    result.mbps >= 10 -> "Full HD"
+                    else -> "Basic"
+                }
+                _labState.value = LabUiState.QoEComplete("Streaming", grade, "Avg Bitrate: %.1f Mbps".format(result.mbps))
+            } else {
+                _labState.value = LabUiState.Error("Test failed")
+            }
+        }
+    }
+
+    fun runVideoCallAudit() {
+        if (!checkMobileData()) return
+        viewModelScope.launch {
+            _labState.value = LabUiState.Running("Auditing Video Call Health...")
+            val jitter = speedMeasurer.measureJitter() ?: 99.0
+            val latency = speedMeasurer.measureLatency() ?: 999
+            
+            val grade = when {
+                latency < 50 && jitter < 10 -> "Excellent"
+                latency < 100 && jitter < 20 -> "Good"
+                latency < 150 && jitter < 30 -> "Fair"
+                else -> "Poor"
+            }
+            _labState.value = LabUiState.QoEComplete("Video Call", grade, "Latency: ${latency}ms, Jitter: %.1fms".format(jitter))
+        }
+    }
+
     fun reset() {
         _labState.value = LabUiState.Idle
     }
@@ -145,5 +181,6 @@ sealed interface LabUiState {
     data class ThrottlingComplete(val status: ThrottlingStatus) : LabUiState
     data class BufferbloatComplete(val result: BufferbloatResult) : LabUiState
     data class DnsComplete(val result: DnsAuditResult) : LabUiState
+    data class QoEComplete(val activity: String, val grade: String, val details: String) : LabUiState
     data class Error(val message: String) : LabUiState
 }

@@ -6,8 +6,10 @@ import com.speedwatch.app.data.model.IspSettings
 import com.speedwatch.app.data.repository.SpeedRepository
 import kotlinx.coroutines.flow.SharingStarted
 import kotlinx.coroutines.flow.StateFlow
+import kotlinx.coroutines.flow.firstOrNull
 import kotlinx.coroutines.flow.stateIn
 import kotlinx.coroutines.launch
+import kotlinx.coroutines.flow.first
 
 class SettingsViewModel(private val repository: SpeedRepository) : ViewModel() {
 
@@ -16,13 +18,25 @@ class SettingsViewModel(private val repository: SpeedRepository) : ViewModel() {
 
     fun saveSettings(ispName: String, download: Double, upload: Double) {
         viewModelScope.launch {
-            repository.saveIspSettings(
-                IspSettings(
-                    ispName = ispName,
-                    promisedDownloadMbps = download,
-                    promisedUploadMbps = upload
+            val current = repository.ispSettings.firstOrNull()
+            if (current != null) {
+                repository.saveIspSettings(
+                    current.copy(
+                        ispName = ispName,
+                        promisedDownloadMbps = download,
+                        promisedUploadMbps = upload
+                    )
                 )
-            )
+            } else {
+                // Should not happen as settings are created during onboarding
+                repository.saveIspSettings(
+                    IspSettings(
+                        ispName = ispName,
+                        promisedDownloadMbps = download,
+                        promisedUploadMbps = upload
+                    )
+                )
+            }
         }
     }
 
@@ -71,6 +85,30 @@ class SettingsViewModel(private val repository: SpeedRepository) : ViewModel() {
     fun setReportAlerts(enabled: Boolean) {
         viewModelScope.launch {
             repository.setReportAlertsEnabled(enabled)
+        }
+    }
+
+    fun setStatusBarMonitor(enabled: Boolean) {
+        viewModelScope.launch {
+            repository.setStatusBarMonitorEnabled(enabled)
+        }
+    }
+
+    fun setShowDownload(show: Boolean) {
+        viewModelScope.launch {
+            repository.setShowDownloadSpeed(show)
+        }
+    }
+
+    fun setShowUpload(show: Boolean) {
+        viewModelScope.launch {
+            repository.setShowUploadSpeed(show)
+        }
+    }
+
+    fun setShowPing(show: Boolean) {
+        viewModelScope.launch {
+            repository.setShowPing(show)
         }
     }
 

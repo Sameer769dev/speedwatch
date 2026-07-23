@@ -28,6 +28,16 @@ class NotificationHelper(private val context: Context) {
                 description = "Notifications for speed drops and monthly reports"
             }
             notificationManager.createNotificationChannel(channel)
+
+            val monitorChannel = NotificationChannel(
+                MONITOR_CHANNEL_ID,
+                "Real-time Monitor",
+                NotificationManager.IMPORTANCE_LOW
+            ).apply {
+                description = "Persistent notification for real-time network speed"
+                setShowBadge(false)
+            }
+            notificationManager.createNotificationChannel(monitorChannel)
         }
     }
 
@@ -74,6 +84,18 @@ class NotificationHelper(private val context: Context) {
         notificationManager.notify(DATA_CAP_NOTIFICATION_ID, notification)
     }
 
+    fun showUnmeteredPromoAlert() {
+        val notification = NotificationCompat.Builder(context, CHANNEL_ID)
+            .setSmallIcon(android.R.drawable.star_on)
+            .setContentTitle("Temporary Unlimited Data!")
+            .setContentText("Your carrier has granted temporary unmetered data. Great time for high-speed tests!")
+            .setPriority(NotificationCompat.PRIORITY_DEFAULT)
+            .setAutoCancel(true)
+            .build()
+
+        notificationManager.notify(PROMO_NOTIFICATION_ID, notification)
+    }
+
     fun showUpgradeUpsell(title: String, message: String) {
         val intent = Intent(context, MainActivity::class.java).apply {
             flags = Intent.FLAG_ACTIVITY_NEW_TASK or Intent.FLAG_ACTIVITY_CLEAR_TASK
@@ -103,6 +125,10 @@ class NotificationHelper(private val context: Context) {
         private const val REPORT_NOTIFICATION_ID = 1002
         private const val UPSELL_NOTIFICATION_ID = 1003
         private const val DATA_CAP_NOTIFICATION_ID = 1004
+        private const val PROMO_NOTIFICATION_ID = 1005
+        const val MONITOR_NOTIFICATION_ID = 1006
+
+        const val MONITOR_CHANNEL_ID = "monitor_channel"
         
         const val EXTRA_NAVIGATE_TO = "navigate_to"
     }

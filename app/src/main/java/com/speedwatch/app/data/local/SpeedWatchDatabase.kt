@@ -8,7 +8,7 @@ import com.speedwatch.app.data.model.IspSettings
 import com.speedwatch.app.data.model.LabAudit
 import com.speedwatch.app.data.model.SpeedLog
 
-@Database(entities = [SpeedLog::class, IspSettings::class, LabAudit::class], version = 8, exportSchema = false)
+@Database(entities = [SpeedLog::class, IspSettings::class, LabAudit::class], version = 9, exportSchema = false)
 abstract class SpeedWatchDatabase : RoomDatabase() {
     abstract fun speedLogDao(): SpeedLogDao
     abstract fun ispSettingsDao(): IspSettingsDao

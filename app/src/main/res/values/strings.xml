@@ -32,6 +32,15 @@
     <string name="pro_feature_history_desc">Keep track of all your speed tests without limits.</string>
     <string name="pro_feature_analytics">Detailed Analytics</string>
     <string name="pro_feature_analytics_desc">Advanced gaming grades and monthly CSV reports.</string>
+    <string name="pro_feature_lab">Advanced Diagnostics Lab</string>
+    <string name="pro_feature_lab_desc">Throttling detection, Bufferbloat, and DNS audits.</string>
+    <string name="pro_feature_monitor">Real-time Status Bar Monitor</string>
+    <string name="pro_feature_monitor_desc">Live speed and ping in your notification bar.</string>
+    <string name="pro_feature_benchmarks">Activity Benchmarks</string>
+    <string name="pro_feature_benchmarks_desc">4K/8K streaming and video call health audits.</string>
+    <string name="secured_by_play">Secured by Google Play</string>
+    <string name="one_time_purchase">One-time purchase. Lifetime access.</string>
+
     <string name="unlock_everything">Unlock Everything - %s</string>
     <string name="maybe_later">Maybe Later</string>
     <string name="pro_active">Pro Features Active</string>

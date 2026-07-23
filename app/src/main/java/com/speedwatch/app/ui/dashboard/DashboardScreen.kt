@@ -34,6 +34,7 @@ import com.google.accompanist.permissions.rememberPermissionState
 import com.google.accompanist.permissions.shouldShowRationale
 import com.speedwatch.app.R
 import com.speedwatch.app.SpeedWatchApplication
+import com.speedwatch.app.domain.NetworkDetails
 import com.speedwatch.app.ui.components.AdBanner
 import com.speedwatch.app.ui.components.SpeedWatchTopBar
 import java.util.Locale
@@ -64,9 +65,11 @@ fun DashboardScreen(onNavigateToPremium: () -> Unit) {
     
     val uiState by viewModel.uiState.collectAsState()
     val settings by app.repository.ispSettings.collectAsState(initial = null)
+    val networkDetails by viewModel.networkDetails.collectAsState()
     
     var showTooltip by remember { mutableStateOf<String?>(null) }
     var showProNag by remember { mutableStateOf(false) }
+    var showInsights by remember { mutableStateOf(false) }
 
     Scaffold(
         topBar = { 
@@ -139,8 +142,17 @@ fun DashboardScreen(onNavigateToPremium: () -> Unit) {
                             }
                             
                             StabilityBadge(jitter = state.jitter)
+
+                        if (settings?.isPremium == true) {
+                            TextButton(onClick = { showInsights = !showInsights }) {
+                                Text(if (showInsights) "Hide Technical Insights" else "Show Technical Insights", style = MaterialTheme.typography.labelSmall)
+                            }
+                            if (showInsights) {
+                                TechnicalInsightsCard(networkDetails)
+                            }
                         }
-                    } else if (state is DashboardUiState.Testing) {
+                    }
+                } else if (state is DashboardUiState.Testing) {
                         Text(
                             text = "Measuring ${state.stage}...",
                             style = MaterialTheme.typography.titleMedium,
@@ -278,6 +290,41 @@ fun StabilityBadge(jitter: Double) {
             color = color,
             fontWeight = FontWeight.Bold
         )
+    }
+}
+
+@Composable
+fun TechnicalInsightsCard(details: NetworkDetails?) {
+    if (details == null) return
+    
+    Card(
+        modifier = Modifier
+            .fillMaxWidth()
+            .padding(top = 8.dp),
+        colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.3f))
+    ) {
+        Column(modifier = Modifier.padding(12.dp)) {
+            Text("Technical Insights", style = MaterialTheme.typography.labelLarge, color = MaterialTheme.colorScheme.primary)
+            Spacer(modifier = Modifier.height(8.dp))
+            
+            InsightRow("Local IP", details.localIp ?: "Unknown")
+            InsightRow("Interface", details.interfaceName ?: "Unknown")
+            if (details.isVpn) {
+                InsightRow("VPN", "Active", color = MaterialTheme.colorScheme.error)
+            }
+            if (details.dnsServers.isNotEmpty()) {
+                InsightRow("Primary DNS", details.dnsServers.first())
+            }
+            InsightRow("Hardware Cap", "%.0f Mbps".format(details.bandwidthDownKbps / 1000.0))
+        }
+    }
+}
+
+@Composable
+fun InsightRow(label: String, value: String, color: Color = MaterialTheme.colorScheme.onSurface) {
+    Row(modifier = Modifier.fillMaxWidth().padding(vertical = 2.dp), horizontalArrangement = Arrangement.SpaceBetween) {
+        Text(label, style = MaterialTheme.typography.labelSmall, color = MaterialTheme.colorScheme.outline)
+        Text(value, style = MaterialTheme.typography.labelSmall, fontWeight = FontWeight.Bold, color = color)
     }
 }
 

@@ -16,5 +16,9 @@ data class IspSettings(
     val dataUsageAlertEnabled: Boolean = true,
     val themePreference: String = "SYSTEM", // "SYSTEM", "LIGHT", "DARK"
     val speedDropAlertsEnabled: Boolean = true,
-    val reportAlertsEnabled: Boolean = true
+    val reportAlertsEnabled: Boolean = true,
+    val statusBarMonitorEnabled: Boolean = false,
+    val showDownloadSpeed: Boolean = true,
+    val showUploadSpeed: Boolean = true,
+    val showPing: Boolean = true
 )

@@ -92,6 +92,30 @@ fun DiagnosticsScreen() {
 
             item {
                 Spacer(modifier = Modifier.height(24.dp))
+                Text("Activity Benchmarks", style = MaterialTheme.typography.titleMedium)
+                Spacer(modifier = Modifier.height(8.dp))
+            }
+
+            item {
+                LabTestCard(
+                    title = "Streaming Quality Audit",
+                    description = "Validate 4K/8K playback capacity.",
+                    icon = Icons.Default.Movie,
+                    onRun = { viewModel.runStreamingAudit() }
+                )
+            }
+
+            item {
+                LabTestCard(
+                    title = "Video Call Health",
+                    description = "Assess Zoom/Teams stability.",
+                    icon = Icons.Default.VideoCall,
+                    onRun = { viewModel.runVideoCallAudit() }
+                )
+            }
+
+            item {
+                Spacer(modifier = Modifier.height(24.dp))
                 Row(
                     modifier = Modifier.fillMaxWidth(),
                     horizontalArrangement = Arrangement.SpaceBetween,
@@ -258,11 +282,23 @@ fun ResultDialog(state: LabUiState, onDismiss: () -> Unit) {
                 is LabUiState.ThrottlingComplete -> ThrottlingResultView(state.status)
                 is LabUiState.BufferbloatComplete -> BufferbloatResultView(state.result)
                 is LabUiState.DnsComplete -> DnsResultView(state.result)
+                is LabUiState.QoEComplete -> QoEResultView(state.activity, state.grade, state.details)
                 is LabUiState.Error -> Text(state.message, color = MaterialTheme.colorScheme.error)
                 else -> {}
             }
         }
     )
+}
+
+@Composable
+fun QoEResultView(activity: String, grade: String, details: String) {
+    Column {
+        Text("$activity Grade: $grade", style = MaterialTheme.typography.titleLarge, fontWeight = FontWeight.Black, color = MaterialTheme.colorScheme.primary)
+        Spacer(modifier = Modifier.height(8.dp))
+        Text(details, style = MaterialTheme.typography.bodyMedium)
+        Spacer(modifier = Modifier.height(8.dp))
+        Text("SpeedWatch analyzed latency, jitter, and throughput to determine if your connection supports high-quality $activity.", style = MaterialTheme.typography.bodySmall)
+    }
 }
 
 @Composable

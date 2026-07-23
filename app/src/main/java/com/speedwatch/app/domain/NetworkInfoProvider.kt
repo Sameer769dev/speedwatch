@@ -6,6 +6,7 @@ import android.content.pm.PackageManager
 import android.net.ConnectivityManager
 import android.net.NetworkCapabilities
 import android.net.wifi.WifiManager
+import android.os.Build
 import android.telephony.TelephonyManager
 import androidx.core.content.ContextCompat
 
@@ -17,21 +18,25 @@ class NetworkInfoProvider(private val context: Context) {
     fun getNetworkDetails(): NetworkDetails {
         val activeNetwork = connectivityManager.activeNetwork
         val capabilities = connectivityManager.getNetworkCapabilities(activeNetwork)
+        val linkProperties = connectivityManager.getLinkProperties(activeNetwork)
 
         val transport = when {
             capabilities?.hasTransport(NetworkCapabilities.TRANSPORT_WIFI) == true -> "Wi-Fi"
             capabilities?.hasTransport(NetworkCapabilities.TRANSPORT_CELLULAR) == true -> "Cellular"
             capabilities?.hasTransport(NetworkCapabilities.TRANSPORT_ETHERNET) == true -> "Ethernet"
+            capabilities?.hasTransport(NetworkCapabilities.TRANSPORT_VPN) == true -> "VPN"
             else -> "Offline"
         }
 
         val isValidated = capabilities?.hasCapability(NetworkCapabilities.NET_CAPABILITY_VALIDATED) == true
         val isMetered = capabilities?.hasCapability(NetworkCapabilities.NET_CAPABILITY_NOT_METERED) == false
+        val isVpn = capabilities?.hasTransport(NetworkCapabilities.TRANSPORT_VPN) == true
         
         var signalStrength: Int? = null
         var detailInfo = ""
+        var is5gPlus = false
 
-        if (transport == "Wi-Fi") {
+        if (capabilities?.hasTransport(NetworkCapabilities.TRANSPORT_WIFI) == true) {
             try {
                 @Suppress("DEPRECATION")
                 val wifiInfo = wifiManager.connectionInfo
@@ -49,9 +54,13 @@ class NetworkInfoProvider(private val context: Context) {
             } catch (e: Exception) {
                 // Log if needed
             }
-        } else if (transport == "Cellular") {
+        } else if (capabilities?.hasTransport(NetworkCapabilities.TRANSPORT_CELLULAR) == true) {
             detailInfo = getCellularType()
         }
+
+        val dnsServers = linkProperties?.dnsServers?.map { it.hostAddress ?: "" }?.filter { it.isNotEmpty() } ?: emptyList()
+        val localIp = linkProperties?.linkAddresses?.firstOrNull { it.address.isSiteLocalAddress }?.address?.hostAddress
+        val interfaceName = linkProperties?.interfaceName
 
         return NetworkDetails(
             transport = transport,
@@ -59,7 +68,12 @@ class NetworkInfoProvider(private val context: Context) {
             isMetered = isMetered,
             signalStrength = signalStrength,
             detailInfo = detailInfo,
-            bandwidthDownKbps = capabilities?.linkDownstreamBandwidthKbps ?: 0
+            bandwidthDownKbps = capabilities?.linkDownstreamBandwidthKbps ?: 0,
+            dnsServers = dnsServers,
+            localIp = localIp,
+            interfaceName = interfaceName,
+            isVpn = isVpn,
+            is5gPlus = is5gPlus
         )
     }
 
@@ -90,5 +104,10 @@ data class NetworkDetails(
     val isMetered: Boolean,
     val signalStrength: Int?,
     val detailInfo: String,
-    val bandwidthDownKbps: Int
+    val bandwidthDownKbps: Int,
+    val dnsServers: List<String> = emptyList(),
+    val localIp: String? = null,
+    val interfaceName: String? = null,
+    val isVpn: Boolean = false,
+    val is5gPlus: Boolean = false
 )

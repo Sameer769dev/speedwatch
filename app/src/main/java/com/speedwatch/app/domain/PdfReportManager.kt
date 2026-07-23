@@ -50,6 +50,9 @@ class PdfReportManager(private val context: Context) {
 
         var y = 60f
         
+        // Watermark
+        drawWatermark(canvas)
+        
         // Header
         canvas.drawText("SpeedWatch Performance Report", 40f, y, titlePaint)
         y += 30f
@@ -162,5 +165,20 @@ class PdfReportManager(private val context: Context) {
             e.printStackTrace()
             null
         }
+    }
+
+    private fun drawWatermark(canvas: Canvas) {
+        val paint = Paint().apply {
+            color = Color.LTGRAY
+            alpha = 30
+            textSize = 50f
+            typeface = Typeface.create(Typeface.DEFAULT, Typeface.BOLD)
+            textAlign = Paint.Align.CENTER
+        }
+        
+        canvas.save()
+        canvas.rotate(-45f, 297f, 421f) // Center of A4
+        canvas.drawText("OFFICIAL SPEEDWATCH AUDIT", 297f, 421f, paint)
+        canvas.restore()
     }
 }

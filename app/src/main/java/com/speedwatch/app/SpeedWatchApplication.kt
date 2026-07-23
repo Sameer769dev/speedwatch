@@ -1,6 +1,14 @@
 package com.speedwatch.app
 
 import android.app.Application
+import android.content.Context
+import android.content.Intent
+import android.net.ConnectivityManager
+import android.net.Network
+import android.net.NetworkCapabilities
+import android.net.NetworkRequest
+import android.os.Build
+import androidx.core.content.ContextCompat
 import androidx.work.ExistingPeriodicWorkPolicy
 import androidx.work.NetworkType
 import androidx.work.PeriodicWorkRequestBuilder
@@ -10,6 +18,7 @@ import com.speedwatch.app.data.repository.SpeedRepository
 import com.speedwatch.app.domain.NetworkInfoProvider
 import com.speedwatch.app.domain.SpeedMeasurer
 import com.speedwatch.app.monetization.MonetizationManager
+import com.speedwatch.app.service.NetworkMonitorService
 import com.speedwatch.app.ui.notifications.NotificationHelper
 import com.speedwatch.app.worker.MonthlyReportWorker
 import com.speedwatch.app.worker.SpeedCheckWorker
@@ -58,6 +67,41 @@ class SpeedWatchApplication : Application() {
         setupMonthlyReporting()
         setupWeeklyUpsell()
         observeFrequencyChanges()
+        observeStatusBarMonitor()
+        setupNetworkCapabilityListener()
+    }
+
+    private fun setupNetworkCapabilityListener() {
+        val connectivityManager = getSystemService(CONNECTIVITY_SERVICE) as ConnectivityManager
+        val request = NetworkRequest.Builder()
+            .addCapability(NetworkCapabilities.NET_CAPABILITY_INTERNET)
+            .build()
+
+        connectivityManager.registerNetworkCallback(request, object : ConnectivityManager.NetworkCallback() {
+            override fun onCapabilitiesChanged(network: Network, capabilities: NetworkCapabilities) {
+                if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.R) {
+                    if (capabilities.hasCapability(NetworkCapabilities.NET_CAPABILITY_TEMPORARILY_NOT_METERED)) {
+                        notificationHelper.showUnmeteredPromoAlert()
+                    }
+                }
+            }
+        })
+    }
+
+    private fun observeStatusBarMonitor() {
+        applicationScope.launch {
+            repository.ispSettings
+                .map { it?.statusBarMonitorEnabled ?: false }
+                .distinctUntilChanged()
+                .collect { enabled ->
+                    val intent = Intent(this@SpeedWatchApplication, NetworkMonitorService::class.java)
+                    if (enabled) {
+                        ContextCompat.startForegroundService(this@SpeedWatchApplication, intent)
+                    } else {
+                        stopService(intent)
+                    }
+                }
+        }
     }
 
     private fun observeFrequencyChanges() {

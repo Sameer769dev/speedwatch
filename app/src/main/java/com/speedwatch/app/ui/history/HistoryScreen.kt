@@ -7,7 +7,7 @@ import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
 import androidx.compose.material.icons.Icons
-import androidx.compose.material.icons.filled.Download
+import androidx.compose.material.icons.filled.Description
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
@@ -85,7 +85,7 @@ fun HistoryScreen(
                                 context.startActivity(Intent.createChooser(intent, "Export History"))
                             }
                         }) {
-                            Icon(Icons.Default.Download, contentDescription = "Export CSV")
+                            Icon(Icons.Default.Description, contentDescription = "Export CSV")
                         }
                     }
                 }

@@ -69,6 +69,26 @@ class SpeedRepository(
         ispSettingsDao.upsertSettings(current.copy(reportAlertsEnabled = enabled))
     }
 
+    suspend fun setStatusBarMonitorEnabled(enabled: Boolean) {
+        val current = ispSettingsDao.getSettingsInternal() ?: return
+        ispSettingsDao.upsertSettings(current.copy(statusBarMonitorEnabled = enabled))
+    }
+
+    suspend fun setShowDownloadSpeed(show: Boolean) {
+        val current = ispSettingsDao.getSettingsInternal() ?: return
+        ispSettingsDao.upsertSettings(current.copy(showDownloadSpeed = show))
+    }
+
+    suspend fun setShowUploadSpeed(show: Boolean) {
+        val current = ispSettingsDao.getSettingsInternal() ?: return
+        ispSettingsDao.upsertSettings(current.copy(showUploadSpeed = show))
+    }
+
+    suspend fun setShowPing(show: Boolean) {
+        val current = ispSettingsDao.getSettingsInternal() ?: return
+        ispSettingsDao.upsertSettings(current.copy(showPing = show))
+    }
+
     suspend fun clearHistory() {
         speedLogDao.clearLogs()
     }
