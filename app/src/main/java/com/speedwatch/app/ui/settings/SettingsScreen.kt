@@ -385,9 +385,24 @@ fun SettingsScreen(onNavigateToPremium: () -> Unit) {
                 }
             )
 
+            val packageInfo = remember(context) {
+                try {
+                    context.packageManager.getPackageInfo(context.packageName, 0)
+                } catch (e: Exception) {
+                    null
+                }
+            }
+            val versionName = packageInfo?.versionName ?: "1.1.0"
+            val versionCode = if (android.os.Build.VERSION.SDK_INT >= android.os.Build.VERSION_CODES.P) {
+                packageInfo?.longVersionCode ?: 2L
+            } else {
+                @Suppress("DEPRECATION")
+                packageInfo?.versionCode?.toLong() ?: 2L
+            }
+
             Spacer(modifier = Modifier.height(16.dp))
             Text(
-                text = "Version 1.0.0",
+                text = "SpeedWatch v$versionName (Build $versionCode)",
                 style = MaterialTheme.typography.bodySmall,
                 color = MaterialTheme.colorScheme.onSurfaceVariant,
                 modifier = Modifier.align(Alignment.CenterHorizontally)
