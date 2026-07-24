@@ -43,51 +43,52 @@ class DashboardViewModel(
             val jitter = speedMeasurer.measureJitter() ?: 0.0
             
             _uiState.value = DashboardUiState.Testing("Download", 0.0)
-            var lastDownload: SpeedResult? = null
+            var peakDownloadMbps = 0.0
+            var maxDownloadBytes = 0L
             speedMeasurer.measureDownloadFlow().collect { result ->
-                lastDownload = result
-                _uiState.value = DashboardUiState.Testing("Download", result.mbps)
+                if (result.mbps > peakDownloadMbps) peakDownloadMbps = result.mbps
+                if (result.bytesUsed > maxDownloadBytes) maxDownloadBytes = result.bytesUsed
+                _uiState.value = DashboardUiState.Testing("Download", peakDownloadMbps)
             }
             
-            if (lastDownload != null) {
-                val finalDownload = lastDownload!!
-                _uiState.value = DashboardUiState.Testing("Upload", 0.0)
-                var lastUpload: SpeedResult? = null
-                speedMeasurer.measureUploadFlow().collect { result ->
-                    lastUpload = result
-                    _uiState.value = DashboardUiState.Testing("Upload", result.mbps)
-                }
-                
-                val finalUpload = lastUpload ?: SpeedResult(0.0, 0L)
-                
-                val log = SpeedLog(
-                    timestamp = System.currentTimeMillis(),
-                    downloadSpeedMbps = finalDownload.mbps,
-                    uploadSpeedMbps = finalUpload.mbps,
-                    latencyMs = latency,
-                    networkType = currentDetails?.transport ?: "Manual",
-                    jitterMs = jitter,
-                    signalStrength = currentDetails?.signalStrength,
-                    dataUsageBytes = finalDownload.bytesUsed + finalUpload.bytesUsed
-                )
-                repository.insertLog(log)
-
-                // History Limit Upsell
-                val settings = repository.ispSettings.firstOrNull()
-                if (settings?.isPremium == false) {
-                    val logs = repository.allLogs.firstOrNull() ?: emptyList()
-                    if (logs.size >= 10) {
-                        notificationHelper.showUpgradeUpsell(
-                            "History Limit Reached",
-                            "Free version limits history to 10 logs. Go Pro for unlimited tracking!"
-                        )
-                    }
-                }
-
-                _uiState.value = DashboardUiState.Success(finalDownload.mbps, finalUpload.mbps, latency, jitter)
-            } else {
-                _uiState.value = DashboardUiState.Error("Failed to measure download speed")
+            val finalDownload = SpeedResult(peakDownloadMbps, maxDownloadBytes)
+            
+            _uiState.value = DashboardUiState.Testing("Upload", 0.0)
+            var peakUploadMbps = 0.0
+            var maxUploadBytes = 0L
+            speedMeasurer.measureUploadFlow().collect { result ->
+                if (result.mbps > peakUploadMbps) peakUploadMbps = result.mbps
+                if (result.bytesUsed > maxUploadBytes) maxUploadBytes = result.bytesUsed
+                _uiState.value = DashboardUiState.Testing("Upload", peakUploadMbps)
             }
+            
+            val finalUpload = SpeedResult(peakUploadMbps, maxUploadBytes)
+                
+            val log = SpeedLog(
+                timestamp = System.currentTimeMillis(),
+                downloadSpeedMbps = finalDownload.mbps,
+                uploadSpeedMbps = finalUpload.mbps,
+                latencyMs = latency,
+                networkType = currentDetails?.transport ?: "Manual",
+                jitterMs = jitter,
+                signalStrength = currentDetails?.signalStrength,
+                dataUsageBytes = finalDownload.bytesUsed + finalUpload.bytesUsed
+            )
+            repository.insertLog(log)
+
+            // History Limit Upsell
+            val settings = repository.ispSettings.firstOrNull()
+            if (settings?.isPremium == false) {
+                val logs = repository.allLogs.firstOrNull() ?: emptyList()
+                if (logs.size >= 10) {
+                    notificationHelper.showUpgradeUpsell(
+                        "History Limit Reached",
+                        "Free version limits history to 10 logs. Go Pro for unlimited tracking!"
+                    )
+                }
+            }
+
+            _uiState.value = DashboardUiState.Success(finalDownload.mbps, finalUpload.mbps, latency, jitter)
         }
     }
 }

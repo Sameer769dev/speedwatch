@@ -18,7 +18,7 @@ class SpeedMeasurer(private val client: OkHttpClient) {
     private val rampUpDurationMs = 2000L
 
     fun measureDownloadFlow(
-        url: String = "https://speed.cloudflare.com/__down?bytes=50000000",
+        url: String = "https://speed.cloudflare.com/__down?bytes=25000000",
         durationMs: Long = defaultDurationMs
     ): Flow<SpeedResult> = flow {
         val totalBytes = AtomicLong(0)
@@ -27,24 +27,27 @@ class SpeedMeasurer(private val client: OkHttpClient) {
 
         val fallbackUrls = listOf(
             url,
-            "https://speed.cloudflare.com/__down?bytes=25000000",
+            "https://cachefly.cachefly.net/10mb.test",
+            "https://speedtest.tele2.net/10MB.zip",
             "https://httpbin.org/bytes/10000000"
         )
 
         coroutineScope {
             val jobs = List(threadCount) { threadIdx ->
                 launch(Dispatchers.IO) {
-                    val targetUrl = fallbackUrls[threadIdx % fallbackUrls.size]
-                    val request = Request.Builder()
-                        .url(targetUrl)
-                        .header("User-Agent", "Mozilla/5.0 (Android; Mobile; SpeedWatch/1.0)")
-                        .cacheControl(CacheControl.FORCE_NETWORK)
-                        .build()
-                    try {
-                        while (System.currentTimeMillis() < testEndTime && isActive) {
+                    var currentUrlIdx = threadIdx
+                    while (System.currentTimeMillis() < testEndTime && isActive) {
+                        val targetUrl = fallbackUrls[currentUrlIdx % fallbackUrls.size]
+                        val request = Request.Builder()
+                            .url(targetUrl)
+                            .header("User-Agent", "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36")
+                            .cacheControl(CacheControl.FORCE_NETWORK)
+                            .build()
+                        try {
                             client.newCall(request).execute().use { response ->
                                 if (!response.isSuccessful) {
-                                    delay(200)
+                                    currentUrlIdx++ // Rotate to next CDN host if current one returns non-200
+                                    delay(100)
                                     return@use
                                 }
                                 val source = response.body?.source() ?: return@use
@@ -55,20 +58,24 @@ class SpeedMeasurer(private val client: OkHttpClient) {
                                     totalBytes.addAndGet(bytesRead.toLong())
                                 }
                             }
+                        } catch (e: Exception) {
+                            currentUrlIdx++ // Rotate to next host on socket/connection failure
+                            delay(100)
                         }
-                    } catch (e: Exception) {
-                        // Suppress network interruption during test termination
                     }
                 }
             }
+
+            var peakMbps = 0.0
 
             while (System.currentTimeMillis() < testEndTime) {
                 val now = System.currentTimeMillis()
                 val currentTotalBytes = totalBytes.get()
                 val elapsedSec = ((now - startTime).coerceAtLeast(100)) / 1000.0
-                val mbps = (currentTotalBytes * 8.0) / (elapsedSec * 1_000_000.0)
+                val instantMbps = (currentTotalBytes * 8.0) / (elapsedSec * 1_000_000.0)
+                if (instantMbps > peakMbps) peakMbps = instantMbps
 
-                emit(SpeedResult(mbps.coerceAtLeast(0.0), currentTotalBytes))
+                emit(SpeedResult(instantMbps.coerceAtLeast(0.0), currentTotalBytes))
                 delay(200)
             }
             jobs.forEach { it.cancelAndJoin() }
@@ -76,7 +83,9 @@ class SpeedMeasurer(private val client: OkHttpClient) {
             val finalNow = System.currentTimeMillis()
             val finalTotalBytes = totalBytes.get()
             val finalElapsedSec = ((finalNow - startTime).coerceAtLeast(100)) / 1000.0
-            val finalMbps = (finalTotalBytes * 8.0) / (finalElapsedSec * 1_000_000.0)
+            val calculatedMbps = (finalTotalBytes * 8.0) / (finalElapsedSec * 1_000_000.0)
+            val finalMbps = if (calculatedMbps > 0) calculatedMbps else peakMbps
+
             emit(SpeedResult(finalMbps.coerceAtLeast(0.0), finalTotalBytes))
         }
     }
