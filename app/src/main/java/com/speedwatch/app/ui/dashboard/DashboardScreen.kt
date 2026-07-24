@@ -586,27 +586,55 @@ fun InsightRow(label: String, value: String, color: Color = MaterialTheme.colorS
 
 @Composable
 fun Speedometer(speed: Double, maxSpeed: Double = 100.0, isTesting: Boolean = false) {
+    // Dynamic max speed auto-scaling (50, 100, 250, 500, 1000 Mbps)
+    val dynamicMaxSpeed = remember(speed) {
+        when {
+            speed > 500 -> 1000.0
+            speed > 250 -> 500.0
+            speed > 100 -> 250.0
+            speed > 50 -> 100.0
+            else -> 50.0
+        }
+    }
+
+    val animatedMaxSpeed by animateFloatAsState(
+        targetValue = dynamicMaxSpeed.toFloat(),
+        animationSpec = tween(durationMillis = 600, easing = FastOutSlowInEasing),
+        label = "MaxSpeedAnimation"
+    )
+
+    // Silky-smooth spring physics with zero bounce for fluid needle movement
     val animatedSpeed by animateFloatAsState(
         targetValue = speed.toFloat(),
         animationSpec = spring(
-            stiffness = Spring.StiffnessLow,
-            dampingRatio = Spring.DampingRatioLowBouncy
+            stiffness = Spring.StiffnessMediumLow,
+            dampingRatio = Spring.DampingRatioNoBouncy
         ),
         label = "SpeedAnimation"
     )
 
-    val trackColor = MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.5f)
+    val trackColor = MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.4f)
+    val primaryGlow = ElectricCyan.copy(alpha = 0.25f)
 
     Box(
         contentAlignment = Alignment.Center,
         modifier = Modifier
-            .size(270.dp)
+            .size(280.dp)
             .padding(12.dp)
     ) {
         Canvas(modifier = Modifier.fillMaxSize()) {
-            val strokeWidth = 22.dp.toPx()
+            val strokeWidth = 20.dp.toPx()
             val radius = (size.minDimension - strokeWidth) / 2
             val centerOffset = Offset(size.width / 2, size.height / 2)
+
+            // Outer Soft Ambient Glow Ring
+            drawArc(
+                color = primaryGlow,
+                startAngle = 135f,
+                sweepAngle = 270f,
+                useCenter = false,
+                style = Stroke(width = strokeWidth + 10.dp.toPx(), cap = StrokeCap.Round)
+            )
 
             // Draw Background Track Arc
             drawArc(
@@ -618,13 +646,14 @@ fun Speedometer(speed: Double, maxSpeed: Double = 100.0, isTesting: Boolean = fa
             )
 
             // Draw Gradient Speed Sweep Arc
-            val sweepAngle = ((animatedSpeed / maxSpeed.toFloat()) * 270f).coerceIn(0f, 270f)
+            val sweepAngle = ((animatedSpeed / animatedMaxSpeed.coerceAtLeast(1f)) * 270f).coerceIn(0f, 270f)
             if (sweepAngle > 0f) {
                 drawArc(
                     brush = Brush.sweepGradient(
                         0.0f to ElectricCyan,
-                        0.5f to BrightBlue,
-                        1.0f to DeepIndigo
+                        0.4f to BrightBlue,
+                        0.8f to DeepIndigo,
+                        1.0f to ElectricCyan
                     ),
                     startAngle = 135f,
                     sweepAngle = sweepAngle,
@@ -635,20 +664,34 @@ fun Speedometer(speed: Double, maxSpeed: Double = 100.0, isTesting: Boolean = fa
 
             // Draw Gauge Needle
             val angleRad = (135f + sweepAngle) * (PI / 180f)
-            val needleLength = radius * 0.75f
+            val needleLength = radius * 0.78f
             val endX = centerOffset.x + cos(angleRad).toFloat() * needleLength
             val endY = centerOffset.y + sin(angleRad).toFloat() * needleLength
 
-            // Needle shadow & main line
+            // Needle Ambient Glow Line
+            drawLine(
+                color = ElectricCyan.copy(alpha = 0.35f),
+                start = centerOffset,
+                end = Offset(endX, endY),
+                strokeWidth = 9.dp.toPx(),
+                cap = StrokeCap.Round
+            )
+
+            // Main Needle Line
             drawLine(
                 color = ElectricCyan,
                 start = centerOffset,
                 end = Offset(endX, endY),
-                strokeWidth = 5.dp.toPx(),
+                strokeWidth = 4.5.dp.toPx(),
                 cap = StrokeCap.Round
             )
 
-            // Needle Center Hub
+            // Needle Center Hub with Multi-Layered Glow
+            drawCircle(
+                color = ElectricCyan.copy(alpha = 0.3f),
+                radius = 13.dp.toPx(),
+                center = centerOffset
+            )
             drawCircle(
                 color = ElectricCyan,
                 radius = 8.dp.toPx(),
@@ -663,21 +706,21 @@ fun Speedometer(speed: Double, maxSpeed: Double = 100.0, isTesting: Boolean = fa
 
         Column(
             horizontalAlignment = Alignment.CenterHorizontally,
-            modifier = Modifier.padding(top = 28.dp)
+            modifier = Modifier.padding(top = 24.dp)
         ) {
             Text(
                 text = "SPEED",
                 style = MaterialTheme.typography.labelMedium.copy(
-                    letterSpacing = 2.sp,
+                    letterSpacing = 2.5.sp,
                     fontWeight = FontWeight.Bold
                 ),
                 color = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.7f)
             )
             Text(
                 text = String.format(Locale.getDefault(), "%.1f", animatedSpeed),
-                fontSize = 44.sp,
+                fontSize = 46.sp,
                 fontWeight = FontWeight.Black,
-                letterSpacing = (-1).sp,
+                letterSpacing = (-1.5).sp,
                 color = MaterialTheme.colorScheme.onSurface
             )
             Text(
