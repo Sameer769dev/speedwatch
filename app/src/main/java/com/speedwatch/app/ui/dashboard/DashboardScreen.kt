@@ -125,10 +125,6 @@ fun DashboardScreen(onNavigateToPremium: () -> Unit) {
             ) {
                 Spacer(modifier = Modifier.height(8.dp))
 
-                NetworkHealthCard(details = networkDetails)
-
-                Spacer(modifier = Modifier.height(16.dp))
-
                 val currentSpeed = when (val state = uiState) {
                     is DashboardUiState.Testing -> state.lastResult
                     is DashboardUiState.Success -> state.download
