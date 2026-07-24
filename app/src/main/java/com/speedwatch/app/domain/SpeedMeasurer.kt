@@ -18,23 +18,25 @@ class SpeedMeasurer(private val client: OkHttpClient) {
     private val rampUpDurationMs = 2000L
 
     fun measureDownloadFlow(
-        url: String = "https://speed.cloudflare.com/__down?bytes=104857600",
+        url: String = "https://speed.cloudflare.com/__down?bytes=50000000",
         durationMs: Long = defaultDurationMs
     ): Flow<SpeedResult> = flow {
         val totalBytes = AtomicLong(0)
         val startTime = System.currentTimeMillis()
-        val rampUpDuration = minOf(2000L, durationMs / 3)
-        val rampUpEndTime = startTime + rampUpDuration
         val testEndTime = startTime + durationMs
 
-        var bytesAtRampUpEnd = 0L
-        var actualRampUpTime = rampUpEndTime
+        val fallbackUrls = listOf(
+            url,
+            "https://speed.cloudflare.com/__down?bytes=25000000",
+            "https://httpbin.org/bytes/10000000"
+        )
 
         coroutineScope {
-            val jobs = List(threadCount) {
+            val jobs = List(threadCount) { threadIdx ->
                 launch(Dispatchers.IO) {
+                    val targetUrl = fallbackUrls[threadIdx % fallbackUrls.size]
                     val request = Request.Builder()
-                        .url(url)
+                        .url(targetUrl)
                         .header("User-Agent", "Mozilla/5.0 (Android; Mobile; SpeedWatch/1.0)")
                         .cacheControl(CacheControl.FORCE_NETWORK)
                         .build()
@@ -60,26 +62,11 @@ class SpeedMeasurer(private val client: OkHttpClient) {
                 }
             }
 
-            var hasCapturedRampUp = false
-
             while (System.currentTimeMillis() < testEndTime) {
                 val now = System.currentTimeMillis()
-
-                if (!hasCapturedRampUp && now >= rampUpEndTime) {
-                    bytesAtRampUpEnd = totalBytes.get()
-                    actualRampUpTime = now
-                    hasCapturedRampUp = true
-                }
-
                 val currentTotalBytes = totalBytes.get()
-                val mbps = if (hasCapturedRampUp && (now - actualRampUpTime) > 200) {
-                    val bytesSinceRampUp = (currentTotalBytes - bytesAtRampUpEnd).coerceAtLeast(0L)
-                    val elapsedSec = (now - actualRampUpTime) / 1000.0
-                    (bytesSinceRampUp * 8.0) / (elapsedSec * 1_000_000.0)
-                } else {
-                    val elapsedSec = (now - startTime).coerceAtLeast(100) / 1000.0
-                    (currentTotalBytes * 8.0) / (elapsedSec * 1_000_000.0)
-                }
+                val elapsedSec = ((now - startTime).coerceAtLeast(100)) / 1000.0
+                val mbps = (currentTotalBytes * 8.0) / (elapsedSec * 1_000_000.0)
 
                 emit(SpeedResult(mbps.coerceAtLeast(0.0), currentTotalBytes))
                 delay(200)
@@ -88,14 +75,8 @@ class SpeedMeasurer(private val client: OkHttpClient) {
 
             val finalNow = System.currentTimeMillis()
             val finalTotalBytes = totalBytes.get()
-            val finalMbps = if (hasCapturedRampUp && (finalNow - actualRampUpTime) > 200) {
-                val bytesSinceRampUp = (finalTotalBytes - bytesAtRampUpEnd).coerceAtLeast(0L)
-                val elapsedSec = (finalNow - actualRampUpTime) / 1000.0
-                (bytesSinceRampUp * 8.0) / (elapsedSec * 1_000_000.0)
-            } else {
-                val elapsedSec = (finalNow - startTime).coerceAtLeast(100) / 1000.0
-                (finalTotalBytes * 8.0) / (elapsedSec * 1_000_000.0)
-            }
+            val finalElapsedSec = ((finalNow - startTime).coerceAtLeast(100)) / 1000.0
+            val finalMbps = (finalTotalBytes * 8.0) / (finalElapsedSec * 1_000_000.0)
             emit(SpeedResult(finalMbps.coerceAtLeast(0.0), finalTotalBytes))
         }
     }
