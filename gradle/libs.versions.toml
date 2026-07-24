@@ -50,6 +50,7 @@ playAds = "25.4.0"
 googleServices = "4.4.2"
 firebaseCrashlyticsPlugin = "3.0.3"
 firebaseBom = "33.9.0"
+playReview = "2.0.2"
 
 [libraries]
 androidx-core-ktx = { group = "androidx.core", name = "core-ktx", version.ref = "coreKtx" }
@@ -109,6 +110,7 @@ play-services-ads = { group = "com.google.android.gms", name = "play-services-ad
 firebase-bom = { group = "com.google.firebase", name = "firebase-bom", version.ref = "firebaseBom" }
 firebase-crashlytics = { group = "com.google.firebase", name = "firebase-crashlytics" }
 firebase-analytics = { group = "com.google.firebase", name = "firebase-analytics" }
+play-review-ktx = { group = "com.google.android.play", name = "review-ktx", version.ref = "playReview" }
 
 [plugins]
 android-application = { id = "com.android.application", version.ref = "agp" }

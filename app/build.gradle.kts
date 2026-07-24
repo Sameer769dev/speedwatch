@@ -79,6 +79,7 @@ dependencies {
     implementation(libs.firebase.analytics)
     implementation(libs.play.billing.ktx)
     implementation(libs.play.services.ads)
+    implementation(libs.play.review.ktx)
     implementation(libs.androidx.datastore.preferences)
     implementation(libs.androidx.work.runtime.ktx)
     implementation(libs.vico.compose)

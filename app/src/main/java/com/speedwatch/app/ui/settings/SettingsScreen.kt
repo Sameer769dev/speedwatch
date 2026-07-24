@@ -349,11 +349,19 @@ fun SettingsScreen(onNavigateToPremium: () -> Unit) {
 
             PreferenceRow(
                 title = "Rate SpeedWatch",
-                summary = "Support us on the Play Store",
+                summary = "Leave a Play Store rating or review",
                 icon = Icons.Default.Star,
                 onClick = {
-                    val intent = Intent(Intent.ACTION_VIEW, Uri.parse("market://details?id=${context.packageName}"))
-                    try { context.startActivity(intent) } catch (e: Exception) { /* Fallback */ }
+                    val activity = context as? android.app.Activity
+                    if (activity != null) {
+                        app.inAppReviewManager.launchInAppReview(activity) {
+                            val intent = Intent(Intent.ACTION_VIEW, Uri.parse("market://details?id=${context.packageName}"))
+                            try { context.startActivity(intent) } catch (e: Exception) { /* Fallback */ }
+                        }
+                    } else {
+                        val intent = Intent(Intent.ACTION_VIEW, Uri.parse("market://details?id=${context.packageName}"))
+                        try { context.startActivity(intent) } catch (e: Exception) { /* Fallback */ }
+                    }
                 }
             )
 

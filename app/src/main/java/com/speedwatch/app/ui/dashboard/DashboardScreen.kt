@@ -80,10 +80,17 @@ fun DashboardScreen(onNavigateToPremium: () -> Unit) {
     val networkDetails by viewModel.networkDetails.collectAsState()
 
     LaunchedEffect(uiState) {
-        if (uiState is DashboardUiState.Success && settings?.isPremium != true) {
+        val state = uiState
+        if (state is DashboardUiState.Success) {
             val activity = context as? android.app.Activity
-            activity?.let {
-                app.adManager.showInterstitialAd(it) {}
+            activity?.let { act ->
+                if (settings?.isPremium != true) {
+                    app.adManager.showInterstitialAd(act) {
+                        app.inAppReviewManager.promptIfUserSatisfied(act, state.download, 3)
+                    }
+                } else {
+                    app.inAppReviewManager.promptIfUserSatisfied(act, state.download, 3)
+                }
             }
         }
     }

@@ -49,6 +49,7 @@ class SpeedWatchApplication : Application() {
     val notificationHelper by lazy { NotificationHelper(this) }
     val monetizationManager by lazy { MonetizationManager(this, repository) }
     val adManager by lazy { com.speedwatch.app.monetization.AdManager(this) }
+    val inAppReviewManager by lazy { com.speedwatch.app.monetization.InAppReviewManager(this) }
     val networkInfoProvider by lazy { NetworkInfoProvider(this) }
     
     private val _navigationEvents = MutableSharedFlow<String>()
