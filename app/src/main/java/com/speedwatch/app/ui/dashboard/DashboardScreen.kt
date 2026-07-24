@@ -315,33 +315,6 @@ fun DashboardScreen(onNavigateToPremium: () -> Unit) {
 
                 Spacer(modifier = Modifier.height(20.dp))
             }
-
-            if (settings?.isPremium != true) {
-                Surface(
-                    modifier = Modifier.fillMaxWidth(),
-                    color = MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.4f),
-                    tonalElevation = 2.dp
-                ) {
-                    Box(modifier = Modifier.fillMaxWidth()) {
-                        AdBanner(modifier = Modifier.padding(vertical = 4.dp))
-
-                        IconButton(
-                            onClick = { showProNag = true },
-                            modifier = Modifier
-                                .align(Alignment.TopEnd)
-                                .size(32.dp)
-                                .padding(4.dp)
-                        ) {
-                            Icon(
-                                imageVector = Icons.Default.Close,
-                                contentDescription = "Remove Ads",
-                                modifier = Modifier.size(16.dp),
-                                tint = MaterialTheme.colorScheme.outline
-                            )
-                        }
-                    }
-                }
-            }
         }
     }
 
