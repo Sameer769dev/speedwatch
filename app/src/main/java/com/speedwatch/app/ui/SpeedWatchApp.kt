@@ -15,6 +15,7 @@ import androidx.navigation3.runtime.NavKey as BaseNavKey
 import androidx.navigation3.runtime.entryProvider
 import androidx.navigation3.runtime.rememberNavBackStack
 import androidx.navigation3.ui.NavDisplay
+import com.speedwatch.app.ui.components.AdBanner
 import com.speedwatch.app.ui.dashboard.DashboardScreen
 import com.speedwatch.app.ui.diagnostics.DiagnosticsScreen
 import com.speedwatch.app.ui.history.HistoryDetailScreen
@@ -131,22 +132,25 @@ fun SpeedWatchApp() {
         modifier = Modifier.fillMaxSize(),
         bottomBar = {
             if (showBottomBar && isInitialized) {
-                NavigationBar {
-                    bottomNavItems.forEach { item ->
-                        val isSelected = currentKey == item.key || 
-                            (item.key == NavKey.History && currentKey is NavKey.HistoryDetail)
-                            
-                        NavigationBarItem(
-                            selected = isSelected,
-                            onClick = {
-                                if (!isSelected) {
-                                    backStack.clear()
-                                    backStack.add(item.key as BaseNavKey)
-                                }
-                            },
-                            icon = { Icon(item.icon, contentDescription = item.label) },
-                            label = { Text(item.label) }
-                        )
+                Column(modifier = Modifier.fillMaxWidth()) {
+                    AdBanner()
+                    NavigationBar {
+                        bottomNavItems.forEach { item ->
+                            val isSelected = currentKey == item.key || 
+                                (item.key == NavKey.History && currentKey is NavKey.HistoryDetail)
+                                
+                            NavigationBarItem(
+                                selected = isSelected,
+                                onClick = {
+                                    if (!isSelected) {
+                                        backStack.clear()
+                                        backStack.add(item.key as BaseNavKey)
+                                    }
+                                },
+                                icon = { Icon(item.icon, contentDescription = item.label) },
+                                label = { Text(item.label) }
+                            )
+                        }
                     }
                 }
             }
