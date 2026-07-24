@@ -50,6 +50,22 @@ fun DiagnosticsScreen() {
     val dataUsage by viewModel.dataUsage.collectAsState()
     val recentAudits by viewModel.recentAudits.collectAsState()
     val settings by viewModel.settings.collectAsState()
+    val runWithAdCheck = { action: () -> Unit ->
+        if (settings?.isPremium == true) {
+            action()
+        } else {
+            val activity = context as? android.app.Activity
+            if (activity != null) {
+                app.adManager.showRewardedAd(
+                    activity = activity,
+                    onRewardGranted = action,
+                    onAdFailed = action
+                )
+            } else {
+                action()
+            }
+        }
+    }
 
     Scaffold(
         topBar = { SpeedWatchTopBar(stringResource(R.string.lab)) }
@@ -82,7 +98,7 @@ fun DiagnosticsScreen() {
                     description = "Compares hardware Wi-Fi/Cell link vs actual throughput.",
                     icon = Icons.Default.Speed,
                     accentColor = ElectricCyan,
-                    onRun = { viewModel.runThrottlingTest() }
+                    onRun = { runWithAdCheck { viewModel.runThrottlingTest() } }
                 )
             }
 
@@ -92,7 +108,7 @@ fun DiagnosticsScreen() {
                     description = "Measures 90th percentile latency spike under heavy load.",
                     icon = Icons.Default.NetworkCheck,
                     accentColor = BrightBlue,
-                    onRun = { viewModel.runBufferbloatTest() }
+                    onRun = { runWithAdCheck { viewModel.runBufferbloatTest() } }
                 )
             }
 
@@ -102,7 +118,7 @@ fun DiagnosticsScreen() {
                     description = "Fires raw UDP queries to Cloudflare & Google resolvers.",
                     icon = Icons.Default.Dns,
                     accentColor = DeepIndigo,
-                    onRun = { viewModel.runDnsAudit() }
+                    onRun = { runWithAdCheck { viewModel.runDnsAudit() } }
                 )
             }
 

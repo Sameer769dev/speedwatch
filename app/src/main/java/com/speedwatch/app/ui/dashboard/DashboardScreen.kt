@@ -79,6 +79,15 @@ fun DashboardScreen(onNavigateToPremium: () -> Unit) {
     val settings by app.repository.ispSettings.collectAsState(initial = null)
     val networkDetails by viewModel.networkDetails.collectAsState()
 
+    LaunchedEffect(uiState) {
+        if (uiState is DashboardUiState.Success && settings?.isPremium != true) {
+            val activity = context as? android.app.Activity
+            activity?.let {
+                app.adManager.showInterstitialAd(it) {}
+            }
+        }
+    }
+
     var showTooltip by remember { mutableStateOf<String?>(null) }
     var showProNag by remember { mutableStateOf(false) }
     var showInsights by remember { mutableStateOf(false) }
