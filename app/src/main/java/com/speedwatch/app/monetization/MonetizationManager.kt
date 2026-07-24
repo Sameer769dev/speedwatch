@@ -12,6 +12,12 @@ import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.launch
 
+enum class PlanTier(val id: String, val productType: String) {
+    WEEKLY("speedwatch_pro_weekly", BillingClient.ProductType.SUBS),
+    YEARLY("speedwatch_pro_yearly", BillingClient.ProductType.SUBS),
+    LIFETIME("speedwatch_pro_lifetime", BillingClient.ProductType.INAPP)
+}
+
 class MonetizationManager(
     context: Context,
     private val repository: SpeedRepository
@@ -25,8 +31,8 @@ class MonetizationManager(
         .enablePendingPurchases(PendingPurchasesParams.newBuilder().enableOneTimeProducts().build())
         .build()
 
-    private val _productDetails = MutableStateFlow<ProductDetails?>(null)
-    val productDetails: StateFlow<ProductDetails?> = _productDetails.asStateFlow()
+    private val _productsMap = MutableStateFlow<Map<String, ProductDetails>>(emptyMap())
+    val productsMap: StateFlow<Map<String, ProductDetails>> = _productsMap.asStateFlow()
 
     private val _billingState = MutableStateFlow<BillingState>(BillingState.Idle)
     val billingState: StateFlow<BillingState> = _billingState.asStateFlow()
@@ -40,8 +46,8 @@ class MonetizationManager(
         billingClient.startConnection(object : BillingClientStateListener {
             override fun onBillingSetupFinished(billingResult: BillingResult) {
                 if (billingResult.responseCode == BillingClient.BillingResponseCode.OK) {
-                    Log.d(TAG, "Billing setup finished")
-                    queryProductDetails()
+                    Log.d(TAG, "Play Store Billing setup finished successfully")
+                    queryAllProducts()
                     queryPurchases()
                 } else {
                     _billingState.value = BillingState.Error("Play Store Error: ${billingResult.debugMessage}")
@@ -54,51 +60,74 @@ class MonetizationManager(
         })
     }
 
-    private fun queryProductDetails() {
-        val productList = listOf(
+    private fun queryAllProducts() {
+        val subProducts = listOf(
             QueryProductDetailsParams.Product.newBuilder()
-                .setProductId("speedwatch_pro_lifetime")
+                .setProductId(PlanTier.WEEKLY.id)
+                .setProductType(BillingClient.ProductType.SUBS)
+                .build(),
+            QueryProductDetailsParams.Product.newBuilder()
+                .setProductId(PlanTier.YEARLY.id)
+                .setProductType(BillingClient.ProductType.SUBS)
+                .build()
+        )
+
+        val inAppProducts = listOf(
+            QueryProductDetailsParams.Product.newBuilder()
+                .setProductId(PlanTier.LIFETIME.id)
                 .setProductType(BillingClient.ProductType.INAPP)
                 .build()
         )
-        val params = QueryProductDetailsParams.newBuilder()
-            .setProductList(productList)
-            .build()
 
-        billingClient.queryProductDetailsAsync(params) { billingResult, queryProductDetailsResult ->
-            if (billingResult.responseCode == BillingClient.BillingResponseCode.OK) {
-                val list = queryProductDetailsResult.productDetailsList
-                val product = list.find { it.productId == "speedwatch_pro_lifetime" }
-                _productDetails.value = product
-                
-                if (product != null) {
-                    _billingState.value = BillingState.Ready
-                } else {
-                    _billingState.value = BillingState.Error("Product not found in Play Store")
+        val collectedMap = mutableMapOf<String, ProductDetails>()
+
+        val subParams = QueryProductDetailsParams.newBuilder().setProductList(subProducts).build()
+        billingClient.queryProductDetailsAsync(subParams) { subResult, subDetails ->
+            if (subResult.responseCode == BillingClient.BillingResponseCode.OK) {
+                subDetails.forEach { collectedMap[it.productId] = it }
+            }
+
+            val inAppParams = QueryProductDetailsParams.newBuilder().setProductList(inAppProducts).build()
+            billingClient.queryProductDetailsAsync(inAppParams) { inAppResult, inAppDetails ->
+                if (inAppResult.responseCode == BillingClient.BillingResponseCode.OK) {
+                    inAppDetails.forEach { collectedMap[it.productId] = it }
                 }
-            } else {
-                _billingState.value = BillingState.Error("Query Error: ${billingResult.debugMessage}")
+                
+                _productsMap.value = collectedMap
+                _billingState.value = BillingState.Ready
             }
         }
     }
 
     fun queryPurchases() {
-        val params = QueryPurchasesParams.newBuilder()
+        val inAppParams = QueryPurchasesParams.newBuilder()
             .setProductType(BillingClient.ProductType.INAPP)
             .build()
 
-        billingClient.queryPurchasesAsync(params) { billingResult, purchases ->
-            if (billingResult.responseCode == BillingClient.BillingResponseCode.OK) {
-                val hasPremium = purchases.any { purchase ->
-                    purchase.purchaseState == Purchase.PurchaseState.PURCHASED &&
-                            purchase.products.contains("speedwatch_pro_lifetime")
-                }
-                
+        val subsParams = QueryPurchasesParams.newBuilder()
+            .setProductType(BillingClient.ProductType.SUBS)
+            .build()
+
+        billingClient.queryPurchasesAsync(subsParams) { subResult, subPurchases ->
+            val activeSub = subResult.responseCode == BillingClient.BillingResponseCode.OK &&
+                    subPurchases.any { purchase ->
+                        purchase.purchaseState == Purchase.PurchaseState.PURCHASED &&
+                                (purchase.products.contains(PlanTier.WEEKLY.id) || purchase.products.contains(PlanTier.YEARLY.id))
+                    }
+
+            billingClient.queryPurchasesAsync(inAppParams) { inAppResult, inAppPurchases ->
+                val activeInApp = inAppResult.responseCode == BillingClient.BillingResponseCode.OK &&
+                        inAppPurchases.any { purchase ->
+                            purchase.purchaseState == Purchase.PurchaseState.PURCHASED &&
+                                    purchase.products.contains(PlanTier.LIFETIME.id)
+                        }
+
+                val isPro = activeSub || activeInApp
                 scope.launch {
-                    repository.setPremium(hasPremium)
+                    repository.setPremium(isPro)
                 }
-                
-                purchases.forEach { purchase ->
+
+                (subPurchases + inAppPurchases).forEach { purchase ->
                     if (purchase.purchaseState == Purchase.PurchaseState.PURCHASED && !purchase.isAcknowledged) {
                         acknowledgePurchase(purchase)
                     }
@@ -107,14 +136,36 @@ class MonetizationManager(
         }
     }
 
+    fun restorePurchases(onComplete: (Boolean, String) -> Unit) {
+        if (!billingClient.isReady) {
+            onComplete(false, "Play Store Service not ready. Please try again.")
+            return
+        }
+        queryPurchases()
+        scope.launch {
+            repository.ispSettings.collect { settings ->
+                if (settings?.isPremium == true) {
+                    onComplete(true, "SpeedWatch Pro status restored successfully!")
+                } else {
+                    onComplete(false, "No active SpeedWatch Pro purchases found on this Google account.")
+                }
+            }
+        }
+    }
+
     fun launchBillingFlow(activity: Activity, productDetails: ProductDetails) {
-        val productDetailsParamsList = listOf(
-            BillingFlowParams.ProductDetailsParams.newBuilder()
-                .setProductDetails(productDetails)
-                .build()
-        )
+        val productDetailsParamsBuilder = BillingFlowParams.ProductDetailsParams.newBuilder()
+            .setProductDetails(productDetails)
+
+        if (productDetails.productType == BillingClient.ProductType.SUBS) {
+            val offerToken = productDetails.subscriptionOfferDetails?.firstOrNull()?.offerToken
+            if (offerToken != null) {
+                productDetailsParamsBuilder.setOfferToken(offerToken)
+            }
+        }
+
         val billingFlowParams = BillingFlowParams.newBuilder()
-            .setProductDetailsParamsList(productDetailsParamsList)
+            .setProductDetailsParamsList(listOf(productDetailsParamsBuilder.build()))
             .build()
 
         billingClient.launchBillingFlow(activity, billingFlowParams)
@@ -144,3 +195,4 @@ sealed interface BillingState {
     data object Ready : BillingState
     data class Error(val message: String) : BillingState
 }
+

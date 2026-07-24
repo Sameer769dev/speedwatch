@@ -1,26 +1,27 @@
 package com.speedwatch.app.ui.premium
 
 import android.app.Activity
+import android.widget.Toast
+import androidx.compose.foundation.BorderStroke
 import androidx.compose.foundation.background
+import androidx.compose.foundation.clickable
+import androidx.compose.foundation.gestures.detectTapGestures
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
-import androidx.compose.foundation.rememberScrollState
-import androidx.compose.foundation.verticalScroll
+import androidx.compose.foundation.shape.CircleShape
+import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
-import androidx.compose.material.icons.filled.Check
-import androidx.compose.material.icons.filled.Diamond
-import androidx.compose.material.icons.filled.Security
+import androidx.compose.material.icons.filled.*
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
-import androidx.compose.ui.platform.LocalContext
-import androidx.compose.foundation.gestures.detectTapGestures
-import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.ui.input.pointer.pointerInput
+import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextAlign
@@ -30,8 +31,12 @@ import androidx.lifecycle.viewmodel.compose.viewModel
 import com.speedwatch.app.R
 import com.speedwatch.app.SpeedWatchApplication
 import com.speedwatch.app.monetization.BillingState
+import com.speedwatch.app.monetization.PlanTier
 import com.speedwatch.app.ui.components.SpeedWatchTopBar
 import com.speedwatch.app.ui.settings.SettingsViewModel
+import com.speedwatch.app.ui.theme.BrightBlue
+import com.speedwatch.app.ui.theme.ElectricCyan
+import com.speedwatch.app.ui.theme.NeonGreen
 
 @Composable
 fun PremiumScreen(onBack: () -> Unit) {
@@ -41,10 +46,12 @@ fun PremiumScreen(onBack: () -> Unit) {
     val viewModel: SettingsViewModel = viewModel {
         SettingsViewModel(app.repository)
     }
-    
+
     val settings by viewModel.settings.collectAsState()
-    val productDetails by app.monetizationManager.productDetails.collectAsState()
+    val productsMap by app.monetizationManager.productsMap.collectAsState()
     val billingState by app.monetizationManager.billingState.collectAsState()
+
+    var selectedTier by remember { mutableStateOf(PlanTier.YEARLY) }
 
     Scaffold(
         topBar = { SpeedWatchTopBar(stringResource(R.string.premium), onBack = onBack) }
@@ -55,16 +62,16 @@ fun PremiumScreen(onBack: () -> Unit) {
                 .padding(innerPadding),
             horizontalAlignment = Alignment.CenterHorizontally
         ) {
-            // Hero Header with Gradient
+            // Hero Header with Electric Cyan Gradient
             item {
                 Box(
                     modifier = Modifier
                         .fillMaxWidth()
-                        .height(200.dp)
+                        .height(180.dp)
                         .background(
                             Brush.verticalGradient(
                                 colors = listOf(
-                                    MaterialTheme.colorScheme.primaryContainer,
+                                    ElectricCyan.copy(alpha = 0.2f),
                                     MaterialTheme.colorScheme.background
                                 )
                             )
@@ -74,40 +81,41 @@ fun PremiumScreen(onBack: () -> Unit) {
                     Column(horizontalAlignment = Alignment.CenterHorizontally) {
                         Surface(
                             modifier = Modifier
-                                .size(100.dp)
+                                .size(88.dp)
                                 .pointerInput(Unit) {
                                     detectTapGestures(
                                         onLongPress = {
                                             viewModel.setPremium(settings?.isPremium == false)
+                                            Toast.makeText(context, "Debug Premium toggled!", Toast.LENGTH_SHORT).show()
                                         }
                                     )
                                 },
                             shape = CircleShape,
-                            color = MaterialTheme.colorScheme.primary.copy(alpha = 0.1f),
-                            border = androidx.compose.foundation.BorderStroke(2.dp, MaterialTheme.colorScheme.primary)
+                            color = ElectricCyan.copy(alpha = 0.12f),
+                            border = BorderStroke(2.dp, ElectricCyan)
                         ) {
                             Box(contentAlignment = Alignment.Center) {
                                 Icon(
                                     imageVector = Icons.Default.Diamond,
-                                    contentDescription = "Debug Unlock",
-                                    modifier = Modifier.size(60.dp),
-                                    tint = MaterialTheme.colorScheme.primary
+                                    contentDescription = "Pro Icon",
+                                    modifier = Modifier.size(52.dp),
+                                    tint = ElectricCyan
                                 )
                             }
                         }
-                        
-                        Spacer(modifier = Modifier.height(16.dp))
-                        
+
+                        Spacer(modifier = Modifier.height(12.dp))
+
                         Surface(
-                            color = MaterialTheme.colorScheme.primary,
-                            shape = MaterialTheme.shapes.extraSmall
+                            color = ElectricCyan,
+                            shape = RoundedCornerShape(100.dp)
                         ) {
                             Text(
-                                text = "PRO",
-                                modifier = Modifier.padding(horizontal = 12.dp, vertical = 2.dp),
-                                style = MaterialTheme.typography.labelLarge,
-                                fontWeight = FontWeight.Black,
-                                color = MaterialTheme.colorScheme.onPrimary
+                                text = "SPEEDWATCH PRO PASS",
+                                modifier = Modifier.padding(horizontal = 14.dp, vertical = 3.dp),
+                                style = MaterialTheme.typography.labelMedium,
+                                fontWeight = FontWeight.ExtraBold,
+                                color = Color(0xFF00363D)
                             )
                         }
                     }
@@ -116,32 +124,87 @@ fun PremiumScreen(onBack: () -> Unit) {
 
             item {
                 Text(
-                    text = stringResource(R.string.upgrade_to_pro),
-                    style = MaterialTheme.typography.headlineMedium,
+                    text = "Unlock Maximum Performance",
+                    style = MaterialTheme.typography.headlineSmall,
                     fontWeight = FontWeight.ExtraBold,
-                    modifier = Modifier.padding(top = 16.dp)
-                )
-                
-                Text(
-                    text = stringResource(R.string.one_time_purchase),
-                    style = MaterialTheme.typography.bodySmall,
-                    color = MaterialTheme.colorScheme.primary,
-                    fontWeight = FontWeight.Bold,
-                    modifier = Modifier.padding(bottom = 8.dp)
+                    modifier = Modifier.padding(top = 8.dp)
                 )
 
                 Text(
-                    text = stringResource(R.string.pro_desc),
+                    text = "Proactive SLA audits, live overlay, and ad-free experience",
                     style = MaterialTheme.typography.bodyMedium,
                     color = MaterialTheme.colorScheme.onSurfaceVariant,
                     textAlign = TextAlign.Center,
-                    modifier = Modifier.padding(horizontal = 32.dp, vertical = 8.dp)
+                    modifier = Modifier.padding(horizontal = 24.dp, vertical = 6.dp)
                 )
             }
 
-            // Features List
-            item { Spacer(modifier = Modifier.height(24.dp)) }
-            
+            // Plan Tier Selector Cards
+            item {
+                Column(
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .padding(horizontal = 20.dp, vertical = 16.dp),
+                    verticalArrangement = Arrangement.spacedBy(10.dp)
+                ) {
+                    // Yearly (Best Value)
+                    val yearlyProduct = productsMap[PlanTier.YEARLY.id]
+                    val yearlyPrice = yearlyProduct?.subscriptionOfferDetails?.firstOrNull()
+                        ?.pricingPhases?.pricingPhaseList?.firstOrNull()?.formattedPrice ?: "$19.99 / yr"
+
+                    PlanCard(
+                        tierName = "Yearly Pro Pass",
+                        priceText = yearlyPrice,
+                        subText = "Equivalent to $1.66 / mo • Billed Annually",
+                        badgeText = "BEST VALUE — SAVE 60%",
+                        badgeColor = ElectricCyan,
+                        isSelected = selectedTier == PlanTier.YEARLY,
+                        onClick = { selectedTier = PlanTier.YEARLY }
+                    )
+
+                    // Weekly (Trial)
+                    val weeklyProduct = productsMap[PlanTier.WEEKLY.id]
+                    val weeklyPrice = weeklyProduct?.subscriptionOfferDetails?.firstOrNull()
+                        ?.pricingPhases?.pricingPhaseList?.firstOrNull()?.formattedPrice ?: "$1.99 / wk"
+
+                    PlanCard(
+                        tierName = "Weekly Access",
+                        priceText = weeklyPrice,
+                        subText = "3-Day Free Trial included • Cancel anytime",
+                        badgeText = "3-DAY FREE TRIAL",
+                        badgeColor = NeonGreen,
+                        isSelected = selectedTier == PlanTier.WEEKLY,
+                        onClick = { selectedTier = PlanTier.WEEKLY }
+                    )
+
+                    // Lifetime (One-time)
+                    val lifetimeProduct = productsMap[PlanTier.LIFETIME.id]
+                    val lifetimePrice = lifetimeProduct?.oneTimePurchaseOfferDetails?.formattedPrice ?: "$39.99"
+
+                    PlanCard(
+                        tierName = "Lifetime Pass",
+                        priceText = lifetimePrice,
+                        subText = "One-time payment • Pay once, own forever",
+                        badgeText = "ONE-TIME OWNERSHIP",
+                        badgeColor = BrightBlue,
+                        isSelected = selectedTier == PlanTier.LIFETIME,
+                        onClick = { selectedTier = PlanTier.LIFETIME }
+                    )
+                }
+            }
+
+            // Features Breakdown
+            item {
+                Text(
+                    text = "Everything Included in Pro",
+                    style = MaterialTheme.typography.titleMedium,
+                    fontWeight = FontWeight.Bold,
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .padding(horizontal = 24.dp, vertical = 8.dp)
+                )
+            }
+
             val features = listOf(
                 R.string.pro_feature_ads to R.string.pro_feature_ads_desc,
                 R.string.pro_feature_monitor to R.string.pro_feature_monitor_desc,
@@ -155,73 +218,172 @@ fun PremiumScreen(onBack: () -> Unit) {
                 PremiumFeatureItem(stringResource(titleRes), stringResource(descRes))
             }
 
-            // Purchase Actions
+            // CTA Purchase Button & Compliance Footer
             item {
-                Spacer(modifier = Modifier.height(48.dp))
-                
+                Spacer(modifier = Modifier.height(24.dp))
+
                 if (settings?.isPremium == true) {
                     Button(
                         onClick = { viewModel.setPremium(false) },
                         modifier = Modifier
                             .fillMaxWidth()
-                            .padding(horizontal = 32.dp)
+                            .padding(horizontal = 24.dp)
                             .height(56.dp),
                         colors = ButtonDefaults.buttonColors(containerColor = MaterialTheme.colorScheme.secondaryContainer)
                     ) {
-                        Text("Pro Active (Tap to Reset for Testing)", color = MaterialTheme.colorScheme.onSecondaryContainer)
+                        Text("Pro Active (Tap to Reset for Testing)", color = MaterialTheme.colorScheme.onSecondaryContainer, fontWeight = FontWeight.Bold)
                     }
                 } else {
-                    val buttonText = when (val state = billingState) {
-                        is BillingState.Connecting -> "Connecting to Play Store..."
-                        is BillingState.Ready -> stringResource(R.string.unlock_everything, productDetails?.oneTimePurchaseOfferDetails?.formattedPrice ?: "")
-                        is BillingState.Error -> state.message
-                        else -> "Play Store Unavailable"
+                    val activeProduct = productsMap[selectedTier.id]
+                    val ctaText = when {
+                        selectedTier == PlanTier.WEEKLY -> "Start 3-Day Free Trial"
+                        selectedTier == PlanTier.YEARLY -> "Subscribe for Yearly Pass"
+                        else -> "Unlock Lifetime Access"
                     }
 
                     Button(
-                        onClick = { 
-                            productDetails?.let {
-                                app.monetizationManager.launchBillingFlow(activity, it)
+                        onClick = {
+                            if (activeProduct != null) {
+                                app.monetizationManager.launchBillingFlow(activity, activeProduct)
+                            } else {
+                                Toast.makeText(context, "Connecting to Play Store... Please check internet", Toast.LENGTH_SHORT).show()
                             }
                         },
                         modifier = Modifier
                             .fillMaxWidth()
-                            .padding(horizontal = 32.dp)
+                            .padding(horizontal = 24.dp)
                             .height(56.dp),
-                        shape = MaterialTheme.shapes.large,
-                        enabled = billingState is BillingState.Ready
+                        shape = RoundedCornerShape(100.dp),
+                        colors = ButtonDefaults.buttonColors(
+                            containerColor = ElectricCyan,
+                            contentColor = Color(0xFF00363D)
+                        )
                     ) {
-                        Text(buttonText, style = MaterialTheme.typography.titleMedium, fontWeight = FontWeight.Bold)
+                        Row(verticalAlignment = Alignment.CenterVertically) {
+                            Icon(Icons.Default.Bolt, contentDescription = null, modifier = Modifier.size(22.dp))
+                            Spacer(modifier = Modifier.width(8.dp))
+                            Text(ctaText, style = MaterialTheme.typography.titleMedium, fontWeight = FontWeight.Bold)
+                        }
                     }
 
-                    // Security Badge
+                    Spacer(modifier = Modifier.height(12.dp))
+
+                    Row(
+                        modifier = Modifier.fillMaxWidth(),
+                        horizontalArrangement = Arrangement.Center,
+                        verticalAlignment = Alignment.CenterVertically
+                    ) {
+                        TextButton(onClick = {
+                            app.monetizationManager.restorePurchases { success, msg ->
+                                Toast.makeText(context, msg, Toast.LENGTH_LONG).show()
+                            }
+                        }) {
+                            Icon(Icons.Default.Refresh, contentDescription = null, modifier = Modifier.size(16.dp), tint = ElectricCyan)
+                            Spacer(modifier = Modifier.width(4.dp))
+                            Text("Restore Purchases", style = MaterialTheme.typography.labelMedium, color = ElectricCyan)
+                        }
+                    }
+
+                    // Security & Play Store Guarantee
                     Row(
                         modifier = Modifier
                             .fillMaxWidth()
-                            .padding(vertical = 16.dp),
+                            .padding(vertical = 12.dp),
                         horizontalArrangement = Arrangement.Center,
                         verticalAlignment = Alignment.CenterVertically
                     ) {
                         Icon(
                             imageVector = Icons.Default.Security,
                             contentDescription = null,
-                            tint = Color.Gray,
+                            tint = MaterialTheme.colorScheme.onSurfaceVariant,
                             modifier = Modifier.size(14.dp)
                         )
                         Spacer(modifier = Modifier.width(6.dp))
                         Text(
-                            text = stringResource(R.string.secured_by_play),
+                            text = "Secured by Google Play • Cancel anytime in Play Store settings",
                             style = MaterialTheme.typography.labelSmall,
-                            color = Color.Gray
+                            color = MaterialTheme.colorScheme.onSurfaceVariant
                         )
                     }
-                    
+
                     TextButton(onClick = { onBack() }) {
-                        Text(stringResource(R.string.maybe_later))
+                        Text("Maybe Later", color = MaterialTheme.colorScheme.onSurfaceVariant)
                     }
                 }
-                
+
                 Spacer(modifier = Modifier.height(32.dp))
+            }
+        }
+    }
+}
+
+@Composable
+fun PlanCard(
+    tierName: String,
+    priceText: String,
+    subText: String,
+    badgeText: String,
+    badgeColor: Color,
+    isSelected: Boolean,
+    onClick: () -> Unit
+) {
+    Surface(
+        onClick = onClick,
+        modifier = Modifier.fillMaxWidth(),
+        shape = RoundedCornerShape(18.dp),
+        color = if (isSelected) ElectricCyan.copy(alpha = 0.12f) else MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.35f),
+        border = BorderStroke(
+            width = if (isSelected) 2.dp else 1.dp,
+            color = if (isSelected) ElectricCyan else MaterialTheme.colorScheme.outline.copy(alpha = 0.15f)
+        )
+    ) {
+        Row(
+            modifier = Modifier
+                .padding(16.dp)
+                .fillMaxWidth(),
+            horizontalArrangement = Arrangement.SpaceBetween,
+            verticalAlignment = Alignment.CenterVertically
+        ) {
+            Column(modifier = Modifier.weight(1f)) {
+                Surface(
+                    color = badgeColor.copy(alpha = 0.2f),
+                    shape = RoundedCornerShape(6.dp)
+                ) {
+                    Text(
+                        text = badgeText,
+                        modifier = Modifier.padding(horizontal = 8.dp, vertical = 2.dp),
+                        style = MaterialTheme.typography.labelSmall,
+                        fontWeight = FontWeight.Bold,
+                        color = badgeColor
+                    )
+                }
+
+                Spacer(modifier = Modifier.height(6.dp))
+
+                Text(
+                    text = tierName,
+                    style = MaterialTheme.typography.titleMedium,
+                    fontWeight = FontWeight.Bold
+                )
+
+                Text(
+                    text = subText,
+                    style = MaterialTheme.typography.bodySmall,
+                    color = MaterialTheme.colorScheme.onSurfaceVariant
+                )
+            }
+
+            Spacer(modifier = Modifier.width(12.dp))
+
+            Column(horizontalAlignment = Alignment.End) {
+                Text(
+                    text = priceText,
+                    style = MaterialTheme.typography.titleMedium,
+                    fontWeight = FontWeight.ExtraBold,
+                    color = if (isSelected) ElectricCyan else MaterialTheme.colorScheme.onSurface
+                )
+
+                RadioButton(selected = isSelected, onClick = null)
             }
         }
     }
@@ -232,25 +394,27 @@ fun PremiumFeatureItem(title: String, description: String) {
     Surface(
         modifier = Modifier
             .fillMaxWidth()
-            .padding(horizontal = 24.dp, vertical = 6.dp),
-        shape = MaterialTheme.shapes.medium,
-        color = MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.3f)
+            .padding(horizontal = 20.dp, vertical = 5.dp),
+        shape = RoundedCornerShape(14.dp),
+        color = MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.3f),
+        border = BorderStroke(1.dp, MaterialTheme.colorScheme.outline.copy(alpha = 0.1f))
     ) {
         Row(
-            modifier = Modifier.padding(16.dp),
+            modifier = Modifier.padding(14.dp),
             verticalAlignment = Alignment.CenterVertically
         ) {
             Icon(
-                imageVector = Icons.Default.Check,
+                imageVector = Icons.Default.CheckCircle,
                 contentDescription = null,
-                tint = Color(0xFF4CAF50),
-                modifier = Modifier.size(24.dp)
+                tint = NeonGreen,
+                modifier = Modifier.size(22.dp)
             )
-            Spacer(modifier = Modifier.width(16.dp))
+            Spacer(modifier = Modifier.width(14.dp))
             Column {
-                Text(text = title, style = MaterialTheme.typography.titleMedium, fontWeight = FontWeight.Bold)
+                Text(text = title, style = MaterialTheme.typography.titleSmall, fontWeight = FontWeight.Bold)
                 Text(text = description, style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
             }
         }
     }
 }
+
