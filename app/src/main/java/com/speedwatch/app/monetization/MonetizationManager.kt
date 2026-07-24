@@ -82,15 +82,19 @@ class MonetizationManager(
         val collectedMap = mutableMapOf<String, ProductDetails>()
 
         val subParams = QueryProductDetailsParams.newBuilder().setProductList(subProducts).build()
-        billingClient.queryProductDetailsAsync(subParams) { subResult, subDetailsList ->
-            if (subResult.responseCode == BillingClient.BillingResponseCode.OK && subDetailsList != null) {
-                subDetailsList.forEach { collectedMap[it.productId] = it }
+        billingClient.queryProductDetailsAsync(subParams) { subResult, subDetailsResult ->
+            if (subResult.responseCode == BillingClient.BillingResponseCode.OK) {
+                subDetailsResult.productDetailsList?.forEach { product ->
+                    collectedMap[product.productId] = product
+                }
             }
 
             val inAppParams = QueryProductDetailsParams.newBuilder().setProductList(inAppProducts).build()
-            billingClient.queryProductDetailsAsync(inAppParams) { inAppResult, inAppDetailsList ->
-                if (inAppResult.responseCode == BillingClient.BillingResponseCode.OK && inAppDetailsList != null) {
-                    inAppDetailsList.forEach { collectedMap[it.productId] = it }
+            billingClient.queryProductDetailsAsync(inAppParams) { inAppResult, inAppDetailsResult ->
+                if (inAppResult.responseCode == BillingClient.BillingResponseCode.OK) {
+                    inAppDetailsResult.productDetailsList?.forEach { product ->
+                        collectedMap[product.productId] = product
+                    }
                 }
 
                 _productsMap.value = collectedMap
