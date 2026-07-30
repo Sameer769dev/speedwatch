@@ -147,9 +147,17 @@ fun DashboardScreen(onNavigateToPremium: () -> Unit) {
 
                 AnimatedContent(
                     targetState = uiState,
+                    contentKey = { state ->
+                        when (state) {
+                            is DashboardUiState.Idle -> "Idle"
+                            is DashboardUiState.Testing -> "Testing"
+                            is DashboardUiState.Success -> "Success"
+                            is DashboardUiState.Error -> "Error"
+                        }
+                    },
                     transitionSpec = {
-                        (fadeIn(animationSpec = tween(400)) + slideInVertically { it / 2 }) togetherWith
-                                (fadeOut(animationSpec = tween(300)) + slideOutVertically { -it / 2 })
+                        (fadeIn(animationSpec = tween(300)) + slideInVertically { it / 3 }) togetherWith
+                                (fadeOut(animationSpec = tween(200)) + slideOutVertically { -it / 3 })
                     },
                     label = "ResultAnimation"
                 ) { state ->
@@ -257,12 +265,18 @@ fun DashboardScreen(onNavigateToPremium: () -> Unit) {
                                     color = ElectricCyan
                                 )
                                 Spacer(modifier = Modifier.width(10.dp))
-                                Text(
-                                    text = "Measuring ${state.stage}...",
-                                    style = MaterialTheme.typography.titleSmall,
-                                    fontWeight = FontWeight.Bold,
-                                    color = ElectricCyan
-                                )
+                                AnimatedContent(
+                                    targetState = state.stage,
+                                    transitionSpec = { fadeIn(tween(250)) togetherWith fadeOut(tween(200)) },
+                                    label = "StageAnimation"
+                                ) { stageText ->
+                                    Text(
+                                        text = "Measuring $stageText...",
+                                        style = MaterialTheme.typography.titleSmall,
+                                        fontWeight = FontWeight.Bold,
+                                        color = ElectricCyan
+                                    )
+                                }
                             }
                         }
                     } else {
