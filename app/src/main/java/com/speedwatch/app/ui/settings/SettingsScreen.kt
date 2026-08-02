@@ -473,12 +473,12 @@ fun SettingsScreen(onNavigateToPremium: () -> Unit) {
                     null
                 }
             }
-            val versionName = packageInfo?.versionName ?: "1.1.0"
+            val versionName = packageInfo?.versionName ?: "1.2.0"
             val versionCode = if (android.os.Build.VERSION.SDK_INT >= android.os.Build.VERSION_CODES.P) {
-                packageInfo?.longVersionCode ?: 2L
+                packageInfo?.longVersionCode ?: 3L
             } else {
                 @Suppress("DEPRECATION")
-                packageInfo?.versionCode?.toLong() ?: 2L
+                packageInfo?.versionCode?.toLong() ?: 3L
             }
 
             Spacer(modifier = Modifier.height(16.dp))
